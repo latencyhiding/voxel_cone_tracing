@@ -19,4 +19,4 @@ echo "# $name" >> $dir/README.md
 
 git -C $dir add -A
 git -C $dir commit -m "First commit"
-git -C $dir push -u origin master
+git -C $dir push -f -u origin master
