@@ -14,3 +14,8 @@ echo "Remotes set to:"
 git -C $dir remote -v
 
 rm -- "$0"
+
+echo "# $name" >> $dir/README.md
+
+git add -A
+git commit -m "First commit"
