@@ -17,5 +17,5 @@ rm -- "$0"
 
 echo "# $name" >> $dir/README.md
 
-git add -A
-git commit -m "First commit"
+git -C $dir add -A
+git -C $dir commit -m "First commit"
