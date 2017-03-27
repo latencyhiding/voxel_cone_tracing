@@ -1,5 +1,10 @@
 dir=$(dirname "$0")
 
+echo "What is the name of your project?"
+read name
+
+sed -i -e "s/set(APP_NAME .*)/set(APP_NAME $name)/g" "$dir/CMakeLists.txt"
+
 echo "What is the url of your project?"
 read url
 
