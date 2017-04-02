@@ -27,15 +27,16 @@ add_subdirectory(thirdparty/glfw)
 find_package(OpenGL REQUIRED)
 
 # header only stuff
-
+add_library(header_only_impls STATIC 
+                              thirdparty/header_only_impls.c)
 include_directories(thirdparty)
 
 ##
 
 add_library(gl_utils STATIC
-                     lib/src/gl_utils/gl_helpers.c
-                     lib/include/gl_utils)
-include_directories(lib/include)
+                     lib/gl_utils/src/gl_helpers.c
+                     lib/gl_utils/include)
+include_directories(lib/gl_utils/include)
 
 add_executable(${APP_NAME} ${SOURCES})
-target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils)
+target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils header_only_impls)

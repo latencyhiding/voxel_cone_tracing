@@ -11,32 +11,23 @@ typedef struct
 {
   char name[256];
   int location;
-  
-  size_t size;
+  int size;
   GLenum type;
   bool normalize;
   size_t stride;
   size_t offset;
 } vert_attrib_t;
 
-typedef struct
-{
-  vert_attrib_t* attribs;
-  size_t num_attribs;
-} vert_spec_t;
-
 void create_vert_attrib(vert_attrib_t* attrib,
                         const char* name,
                         int location,
-                        size_t size,
+                        int size,
                         GLenum type,
                         bool normalize,
                         size_t stride,
                         size_t offset);
 
-void create_vertex_spec(vert_spec_t* vert_spec, vert_attrib_t* attribs, size_t num_attribs);
-
-void set_vertex_spec(vert_spec_t* vert_spec);
+void set_vertex_spec(vert_attrib_t* vert_spec, size_t num_attribs);
 
 GLuint create_buffer(const void* data, size_t data_size, GLenum usage, GLenum access_type);
 
@@ -50,7 +41,7 @@ GLuint load_shader_source(const char* pathname, GLenum shader_type);
 
 void destroy_shader(GLuint shader);
 
-GLuint link_shader_program(GLuint* shaders, size_t num_shaders, vert_spec_t* vert_spec);
+GLuint link_shader_program(GLuint* shaders, size_t num_shaders);
 
 void destroy_program(GLuint program);
 

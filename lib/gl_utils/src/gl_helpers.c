@@ -2,16 +2,17 @@
 #include <string.h>
 
 // Vertex Specs
-
 void create_vert_attrib(vert_attrib_t* attrib,
                         const char* name,
                         int location,
-                        size_t size,
+                        int size,
                         GLenum type,
                         bool normalize,
                         size_t stride,
                         size_t offset)
 {
+  if (strlen(name) > 256)
+    return;
   strcpy(attrib->name, name);
   attrib->location = location;
   attrib->size = size;
@@ -21,21 +22,16 @@ void create_vert_attrib(vert_attrib_t* attrib,
   attrib->offset = offset;
 }
 
-void create_vertex_spec(vert_spec_t* vert_spec, vert_attrib_t* attribs, size_t num_attribs)
+void set_vertex_spec(vert_attrib_t* attribs, size_t num_attribs)
 {
-  vert_spec->attribs = attribs;
-  vert_spec->num_attribs = num_attribs;
-}
-
-void set_vertex_spec(vert_spec_t* vert_spec)
-{
-  for (int i = 0; i < vert_spec->num_attribs; i++)
+  for (int i = 0; i < num_attribs; i++)
   {
-    vert_attrib_t* attrib = vert_spec->attribs + i;
+    vert_attrib_t* attrib = attribs + i;
     
     glEnableVertexAttribArray(attrib->location);
     glVertexAttribPointer(attrib->location, attrib->size, attrib->type,
                           attrib->normalize, attrib->stride, (void*) attrib->offset);
+ 
   }
 }
 
@@ -122,7 +118,7 @@ void destroy_shader(GLuint shader)
   glDeleteShader(shader);
 }
 
-GLuint link_shader_program(GLuint* shaders, size_t num_shaders, vert_spec_t* vert_spec)
+GLuint link_shader_program(GLuint* shaders, size_t num_shaders)
 {
   if (!shaders)
     return 0;
@@ -133,12 +129,6 @@ GLuint link_shader_program(GLuint* shaders, size_t num_shaders, vert_spec_t* ver
     glAttachShader(program, shaders[i]);
   }
   
-  for (size_t i = 0; i < vert_spec->num_attribs; i++)
-  {
-    glBindAttribLocation(program,
-                         vert_spec->attribs[i].location, vert_spec->attribs[i].name);
-  }
-
   glLinkProgram(program);
   
   int is_linked;
@@ -175,3 +165,4 @@ void detach_shaders(GLuint program, GLuint* shaders, size_t num_shaders)
     glDetachShader(program, shaders[i]);
   }
 }
+
