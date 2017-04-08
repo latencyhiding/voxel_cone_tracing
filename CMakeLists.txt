@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-set(APP_NAME gl_boilerplate)
+set(APP_NAME Voxel_Cone_Tracing)
 
 set(SOURCES src/main.c)
 
