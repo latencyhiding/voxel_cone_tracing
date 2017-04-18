@@ -1,0 +1,20 @@
+#version 430
+
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec2 uv;
+
+out VS_OUT
+{
+  vec4 position;
+  vec3 normal;
+  vec2 uv;
+} vs_out;
+
+void main()
+{
+  gl_Position = vec4(position, 1.0);
+  vs_out.position = vec4(position, 1.0);
+  vs_out.normal = normal;
+  vs_out.uv = uv;
+}

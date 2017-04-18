@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "renderer.h"
 
 static void error_callback(int error, const char *description)
 {
@@ -29,7 +30,7 @@ int main()
   glfwSetErrorCallback(error_callback);
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
@@ -46,11 +47,19 @@ int main()
   gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
 
   glfwSetKeyCallback(window, key_callback);
+
+  renderer renderer;
+  model_id_t model = renderer.load_model("assets/cornell-box.obj");
+  shader_id_t shader = renderer.load_shader("shader/passthrough.vert", "shader/passthrough.frag");
   
   while (!glfwWindowShouldClose(window))
   {
     // Input
     glfwPollEvents();
+
+    renderer.queue_model(model, shader, NULL, 0);
+    renderer.render();
+    glfwSwapBuffers(window);
   }
   
   return 0;

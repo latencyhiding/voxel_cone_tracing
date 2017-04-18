@@ -83,6 +83,9 @@ GLuint compile_shader(const char* source, size_t size, GLenum shader_type)
 
 GLuint load_shader_source(const char* pathname, GLenum shader_type)
 {
+  if (!pathname)
+    return 0;
+
   GLuint result;
   FILE* file = NULL;
   size_t file_size;
@@ -115,6 +118,9 @@ GLuint load_shader_source(const char* pathname, GLenum shader_type)
 
 void destroy_shader(GLuint shader)
 {
+  if (!shader)
+    return;
+
   glDeleteShader(shader);
 }
 
@@ -126,6 +132,8 @@ GLuint link_shader_program(GLuint* shaders, size_t num_shaders)
   GLuint program = glCreateProgram();
   for (size_t i = 0; i < num_shaders; i++)
   {
+    if (!shaders[i])
+      continue;
     glAttachShader(program, shaders[i]);
   }
   

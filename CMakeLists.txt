@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.2)
 
 set(APP_NAME Voxel_Cone_Tracing)
 
-set(SOURCES src/main.c)
+set(SOURCES src/main.cpp
+            src/renderer.cpp)
 
 ## Third party libs
 # glad 
@@ -26,9 +27,12 @@ add_subdirectory(thirdparty/glfw)
 
 find_package(OpenGL REQUIRED)
 
+# GLM
+include_directories(thirdparty/glm)
+
 # header only stuff
 add_library(header_only_impls STATIC 
-                              thirdparty/header_only_impls.c)
+                              thirdparty/header_only_impls.cpp)
 include_directories(thirdparty)
 
 ##
@@ -39,4 +43,4 @@ add_library(gl_utils STATIC
 include_directories(lib/gl_utils/include)
 
 add_executable(${APP_NAME} ${SOURCES})
-target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils header_only_impls)
+target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils header_only_impls) 

@@ -7,6 +7,11 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct
 {
   char name[256];
@@ -46,4 +51,8 @@ GLuint link_shader_program(GLuint* shaders, size_t num_shaders);
 void destroy_program(GLuint program);
 
 void detach_shaders(GLuint program, GLuint* shaders, size_t num_shaders);
+
+#ifdef __cplusplus
+}
+#endif
 
