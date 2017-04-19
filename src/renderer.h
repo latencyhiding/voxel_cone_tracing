@@ -91,6 +91,13 @@ typedef struct
 
   int location;
 } uniform_t;
+
+typedef struct
+{
+  glm::mat4 projection;
+  glm::mat4 view;
+} camera_data_t;
+
 struct renderer
 {
   renderer();
@@ -124,6 +131,7 @@ private:
   std::vector<shader_t> m_shaders;
 
   GLuint m_camera_ubo;
+  camera_data_t m_camera;
 
   // Per frame
 

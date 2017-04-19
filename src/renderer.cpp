@@ -1,4 +1,4 @@
-// TODO: Something wrong with faces
+// TODO: Split into pass class
 // TODO: Finish shader implementation
 // TODO: Write your own damn object loader
 // TODO: Support textures
@@ -49,11 +49,11 @@ namespace std
 #pragma pack(push, 1)
 typedef struct 
 {
-  float ambient[3];
-  float diffuse[3];
-  float specular[3];
-  float transmittance[3];
-  float emission[3];
+  float ambient[4];
+  float diffuse[4];
+  float specular[4];
+  float transmittance[4];
+  float emission[4];
   float shininess;
   float ior;       // index of refraction
   float dissolve;  // 1 == opaque; 0 == fully transparent
@@ -81,6 +81,8 @@ void create_material(const tinyobj::material_t& material, material_t* result)
     mat_data.transmittance[i] = material.transmittance[i];
     mat_data.emission[i] = material.emission[i];
   }
+  
+  printf("%f, %f, %f\n", mat_data.emission[0], mat_data.emission[1], mat_data.emission[2]); 
 
   mat_data.shininess = material.shininess;
   mat_data.ior = material.ior;
@@ -102,19 +104,44 @@ void create_material(const tinyobj::material_t& material, material_t* result)
   result->num_textures = 0;
 }
 
-typedef struct
+#define DEFAULT_MATERIAL_INDEX 0
+
+static void fill_default_mat_data(material_data_t& mat)
 {
-  glm::mat4 lookat;
-  glm::mat4 projection;
-} camera_data_t;
+  mat = {0};
+  mat.ambient[0] = 255;
+  mat.ambient[1] = 0;
+  mat.ambient[2] = 255;
+  mat.diffuse[0] = 255;
+  mat.diffuse[1] = 0;
+  mat.diffuse[2] = 255;
+
+  mat.shininess = 0;
+  mat.ior = 0.4;
+  mat.dissolve = 1;
+}
 
 renderer::renderer()
 {
   // Setup camera ubo
   glGenBuffers(1, &m_camera_ubo);
   glBindBuffer(GL_UNIFORM_BUFFER, m_camera_ubo);
-  glBufferData(GL_UNIFORM_BUFFER, sizeof(camera_data_t), NULL, GL_STREAM_DRAW);
-  glBindBuffer(GL_UNIFORM_BUFFER, 0); 
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(camera_data_t), &m_camera, GL_DYNAMIC_DRAW);
+
+  // Push default material
+  material_data_t default_material_data;
+
+  fill_default_mat_data(default_material_data);
+
+  material_t default_material;
+  default_material.num_textures = 0;
+
+  glGenBuffers(1, &default_material.ubo);
+  glBindBuffer(GL_UNIFORM_BUFFER, default_material.ubo);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(material_t), &default_material, GL_STATIC_DRAW);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+  m_materials.push_back(default_material);
 }
 
 renderer::~renderer()
@@ -142,19 +169,18 @@ model_id_t renderer::load_model(const char* filename)
   std::string filename_obj = filename;
   std::string basepath = filename_obj.substr(0, filename_obj.find_last_of("\\/") + 1);
 
-  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename, basepath.c_str()))
+  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename, basepath.c_str(), true))
   {
     fprintf(stderr, "Error loading file %s\n", filename);
     return INVALID_ID;
   }
 
   // Store materials
-  size_t material_base_index = materials.size(); 
+  size_t material_base_index = m_materials.size(); 
   for (const auto& material : materials)
   {
-    material_t new_mat;
+    material_t new_mat = {0};
     create_material(material, &new_mat);
-
     m_materials.push_back(new_mat);
   }
 
@@ -162,10 +188,6 @@ model_id_t renderer::load_model(const char* filename)
   std::vector<unsigned> indices;
   std::unordered_map<vert_data_t, unsigned> unique_verts = {};
   
-  int last_material_index = -1;
-  size_t index_counter = 0;
-  size_t face_counter = 0;
-
   GLuint vao;
   GLuint vbo;
   GLuint ebo;
@@ -180,6 +202,7 @@ model_id_t renderer::load_model(const char* filename)
   new_draw_obj.ebo = ebo;
   new_draw_obj.draw_type = GL_TRIANGLES;
   new_draw_obj.shader_id = INVALID_ID;
+  new_draw_obj.material_index = 0;
   new_draw_obj.range.start = 0;
   new_draw_obj.range.size = 0;
 
@@ -192,27 +215,10 @@ model_id_t renderer::load_model(const char* filename)
 
   for (const auto& shape : shapes)
   { 
-    printf("%s\n", shape.name.c_str());
+    int indices_base = indices.size();
+
     for (const auto& index : shape.mesh.indices)
     {
-      if ((face_counter = index_counter % 3) == 0)
-      {
-        if (last_material_index == -1)
-          last_material_index = shape.mesh.material_ids[face_counter];
-        else if (shape.mesh.material_ids[face_counter] != last_material_index) // new draw_obj
-        {
-          last_material_index = shape.mesh.material_ids[face_counter];
-          new_draw_obj.material_index = last_material_index + material_base_index;
-
-          m_draw_objs.push_back(new_draw_obj);
-          printf("%d, %li, %li\n", new_draw_obj.draw_type, new_draw_obj.range.size, new_draw_obj.range.start);
-          new_model.num_draw_objs++;
-
-          new_draw_obj.range.start += new_draw_obj.range.size;
-          new_draw_obj.range.size = 0;
-        }
-      }
-
       vert_data_t vertex = {};
 
       vertex.pos = 
@@ -249,11 +255,46 @@ model_id_t renderer::load_model(const char* filename)
 
       vertices.push_back(vertex);
       indices.push_back(unique_verts[vertex]);
-
-      new_draw_obj.range.size++;
-
-      index_counter++;
     }
+
+    int current_material_id = shape.mesh.material_ids.at(0);
+    size_t start = indices_base;
+    size_t size = 0;
+
+    for (size_t i = 0; i < shape.mesh.material_ids.size(); i++)
+    {
+      int material_id = shape.mesh.material_ids.at(i);
+
+      if (material_id == -1)
+        material_id = DEFAULT_MATERIAL_INDEX;
+
+      if (current_material_id != material_id)
+      {
+        // push new draw object
+        new_model.num_draw_objs++;
+
+        new_draw_obj.range.start = start;
+        new_draw_obj.range.size = size;
+        new_draw_obj.material_index = material_base_index + current_material_id;
+
+        m_draw_objs.push_back(new_draw_obj);
+
+        // Initialize start + size for new object
+        start += size;
+        size = 0;
+        current_material_id = material_id;
+      }
+      size += shape.mesh.num_face_vertices.at(i); 
+    }
+
+    // Add the last object
+
+    new_model.num_draw_objs++;
+
+    new_draw_obj.range.start = start;
+    new_draw_obj.range.size = size;
+    new_draw_obj.material_index = material_base_index + current_material_id;
+    m_draw_objs.push_back(new_draw_obj);
   }
 
   // Upload everything to the device
@@ -266,27 +307,27 @@ model_id_t renderer::load_model(const char* filename)
 
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0,
-                        3,
-                        GL_FLOAT,
-                        false,
-                        sizeof(vert_data_t),
-                        NULL);
+      3,
+      GL_FLOAT,
+      false,
+      sizeof(vert_data_t),
+      NULL);
 
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1,
-                        3,
-                        GL_FLOAT,
-                        false,
-                        sizeof(vert_data_t),
-                        (const void*) offsetof(vert_data_t, norm));
+      3,
+      GL_FLOAT,
+      false,
+      sizeof(vert_data_t),
+      (const void*) offsetof(vert_data_t, norm));
 
   glEnableVertexAttribArray(2);
   glVertexAttribPointer(2,
-                        2,
-                        GL_FLOAT,
-                        false,
-                        sizeof(vert_data_t),
-                        (const void*) offsetof(vert_data_t, tex));
+      2,
+      GL_FLOAT,
+      false,
+      sizeof(vert_data_t),
+      (const void*) offsetof(vert_data_t, tex));
 
   glBindVertexArray(0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -303,8 +344,8 @@ model_id_t renderer::load_model(const char* filename)
 }
 
 shader_id_t renderer::load_shader(const char* vertex_shader_name,
-                                  const char* fragment_shader_name,
-                                  const char* geometry_shader_name)
+    const char* fragment_shader_name,
+    const char* geometry_shader_name)
 {
   GLuint vert_shader = load_shader_source(vertex_shader_name, GL_VERTEX_SHADER);
   GLuint frag_shader = load_shader_source(fragment_shader_name, GL_FRAGMENT_SHADER);
@@ -333,13 +374,8 @@ int renderer::shader_get_uniform_location(shader_id_t shader_id, const char* nam
 
 void renderer::set_camera_transform(glm::mat4& lookat, glm::mat4& projection)
 {
-  camera_data_t camera_data;
-  camera_data.lookat = lookat;
-  camera_data.projection = projection;
-
-  glBindBuffer(GL_UNIFORM_BUFFER, m_camera_ubo);
-  glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(camera_data_t), (const GLvoid*) &camera_data);
-  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  m_camera.view = lookat;
+  m_camera.projection = projection;
 }
 
 void renderer::queue_model(model_id_t model_id, shader_id_t shader_id, uniform_t* uniforms, size_t num_uniforms)
@@ -396,13 +432,18 @@ void renderer::bind_material(material_t& material, int location)
     glActiveTexture(GL_TEXTURE0 + i);
     glBindTexture(GL_TEXTURE_2D, material.textures[i]);
   }
-  
+
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void renderer::render()
 {
+  glBindBuffer(GL_UNIFORM_BUFFER, m_camera_ubo);
+  glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(camera_data_t), &m_camera);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
   glClearColor(0.15, 0.25, 0.25, 1.0);
+  glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   draw_obj_t cached_draw_obj = {0};
@@ -416,7 +457,7 @@ void renderer::render()
       cached_draw_obj.vao = draw_obj.vao;
       glBindVertexArray(draw_obj.vao);
     }
- 
+
     // Bind shaders
     if (draw_obj.shader_id != cached_draw_obj.shader_id)
     {
@@ -424,7 +465,10 @@ void renderer::render()
 
       shader_t& shader = m_shaders[draw_obj.shader_id];
       glUseProgram(shader.program);
+
+      // Bind ubos for camera and materials
       glBindBufferBase(GL_UNIFORM_BUFFER, shader.camera_location, m_camera_ubo);
+      bind_material(m_materials[draw_obj.material_index], shader.material_location);
     }
 
     // Bind uniforms, bind materials
@@ -435,7 +479,7 @@ void renderer::render()
       shader_t& shader = m_shaders[draw_obj.shader_id];
       material_t& material = m_materials[draw_obj.material_index];
 
-      //bind_material(material, shader.material_location);
+      bind_material(material, shader.material_location);
     }
 
     upload_uniforms(draw_obj.uniform_range);
