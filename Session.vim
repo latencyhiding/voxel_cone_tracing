@@ -48,12 +48,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 33) / 66)
+let s:l = 84 - ((63 * winheight(0) + 33) / 66)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 0
+84
+normal! 02|
 wincmd w
 argglobal
 edit src/main.cpp
@@ -66,12 +66,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 33) / 66)
+let s:l = 20 - ((0 * winheight(0) + 33) / 66)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 0
+20
+normal! 04|
 wincmd w
 argglobal
 edit shader/passthrough.vert
@@ -102,14 +102,13 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 36 - ((31 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
+36
 normal! 0
 wincmd w
-2wincmd w
 exe 'vert 1resize ' . ((&columns * 84 + 127) / 254)
 exe 'vert 2resize ' . ((&columns * 84 + 127) / 254)
 exe '3resize ' . ((&lines * 33 + 34) / 68)

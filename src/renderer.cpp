@@ -82,8 +82,6 @@ void create_material(const tinyobj::material_t& material, material_t* result)
     mat_data.emission[i] = material.emission[i];
   }
   
-  printf("%f, %f, %f\n", mat_data.emission[0], mat_data.emission[1], mat_data.emission[2]); 
-
   mat_data.shininess = material.shininess;
   mat_data.ior = material.ior;
   mat_data.dissolve = material.dissolve;
