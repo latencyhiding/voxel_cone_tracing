@@ -4,3 +4,4 @@
 -Ithirdparty
 -Ilib/gl_utils/include
 -Iinclude
+-std=c++11
