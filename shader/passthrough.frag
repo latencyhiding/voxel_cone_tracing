@@ -30,7 +30,8 @@ layout (std140, binding = 1) uniform material
   float anisotropy_rotation;
 };
 
+uniform float cube_size;
 void main()
 {
-  final_color = vec4(ambient, 1.0);
+  final_color = vec4(diffuse, 1.0);
 }

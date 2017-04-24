@@ -8,37 +8,48 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
-badd +17 src/renderer.cpp
-badd +1 shader/passthrough.frag
-badd +1 shader/passthrough.vert
-badd +0 src/pass.h
-badd +0 lib/gl_utils/include/gl_utils/gl_helpers.h
+badd +36 shader/passthrough.frag
+badd +24 shader/passthrough.vert
+badd +17 src/pass.h
+badd +1 lib/gl_utils/include/gl_utils/gl_helpers.h
+badd +115 src/renderer.h
+badd +60 src/camera.h
+badd +64 src/main.cpp
+badd +26 shader/voxelize.vert
+badd +26 shader/voxelize.geom
+badd +1 src/device.cpp
+badd +15 src/command_bucket.h
+badd +461 src/renderer.cpp
+badd +24 shader/voxel_cone_tracing.vert
+badd +0 shader/voxel_cone_tracing.frag
 argglobal
 silent! argdel *
 argadd src/renderer.cpp
-edit lib/gl_utils/include/gl_utils/gl_helpers.h
+edit src/main.cpp
 set splitbelow splitright
 wincmd _ | wincmd |
 vsplit
-wincmd _ | wincmd |
-vsplit
-2wincmd h
-wincmd w
-wincmd w
+1wincmd h
 wincmd _ | wincmd |
 split
 1wincmd k
+wincmd w
+wincmd _ | wincmd |
+vsplit
+1wincmd h
+wincmd w
 wincmd w
 set nosplitbelow
 set nosplitright
 wincmd t
 set winheight=1 winwidth=1
-exe 'vert 1resize ' . ((&columns * 90 + 135) / 271)
-exe 'vert 2resize ' . ((&columns * 89 + 135) / 271)
-exe '3resize ' . ((&lines * 34 + 35) / 71)
-exe 'vert 3resize ' . ((&columns * 90 + 135) / 271)
-exe '4resize ' . ((&lines * 34 + 35) / 71)
-exe 'vert 4resize ' . ((&columns * 90 + 135) / 271)
+exe '1resize ' . ((&lines * 33 + 34) / 68)
+exe 'vert 1resize ' . ((&columns * 169 + 127) / 254)
+exe '2resize ' . ((&lines * 32 + 34) / 68)
+exe 'vert 2resize ' . ((&columns * 84 + 127) / 254)
+exe '3resize ' . ((&lines * 32 + 34) / 68)
+exe 'vert 3resize ' . ((&columns * 84 + 127) / 254)
+exe 'vert 4resize ' . ((&columns * 84 + 127) / 254)
 argglobal
 setlocal fdm=manual
 setlocal fde=0
@@ -49,7 +60,25 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 34) / 69)
+let s:l = 119 - ((32 * winheight(0) + 16) / 33)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+119
+normal! 0
+wincmd w
+argglobal
+edit shader/voxel_cone_tracing.frag
+setlocal fdm=manual
+setlocal fde=0
+setlocal fmr={{{,}}}
+setlocal fdi=#
+setlocal fdl=0
+setlocal fml=1
+setlocal fdn=20
+setlocal fen
+silent! normal! zE
+let s:l = 1 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -57,7 +86,7 @@ normal! zt
 normal! 0
 wincmd w
 argglobal
-edit src/pass.h
+edit shader/voxel_cone_tracing.vert
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -67,33 +96,15 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 13 - ((12 * winheight(0) + 34) / 69)
+let s:l = 24 - ((23 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-13
-normal! 04|
-wincmd w
-argglobal
-edit shader/passthrough.frag
-setlocal fdm=manual
-setlocal fde=0
-setlocal fmr={{{,}}}
-setlocal fdi=#
-setlocal fdl=0
-setlocal fml=1
-setlocal fdn=20
-setlocal fen
-silent! normal! zE
-let s:l = 36 - ((33 * winheight(0) + 17) / 34)
-if s:l < 1 | let s:l = 1 | endif
-exe s:l
-normal! zt
-36
+24
 normal! 0
 wincmd w
 argglobal
-edit shader/passthrough.vert
+edit src/renderer.cpp
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -103,20 +114,21 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 17) / 34)
+let s:l = 395 - ((49 * winheight(0) + 33) / 66)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
+395
 normal! 0
 wincmd w
-2wincmd w
-exe 'vert 1resize ' . ((&columns * 90 + 135) / 271)
-exe 'vert 2resize ' . ((&columns * 89 + 135) / 271)
-exe '3resize ' . ((&lines * 34 + 35) / 71)
-exe 'vert 3resize ' . ((&columns * 90 + 135) / 271)
-exe '4resize ' . ((&lines * 34 + 35) / 71)
-exe 'vert 4resize ' . ((&columns * 90 + 135) / 271)
+3wincmd w
+exe '1resize ' . ((&lines * 33 + 34) / 68)
+exe 'vert 1resize ' . ((&columns * 169 + 127) / 254)
+exe '2resize ' . ((&lines * 32 + 34) / 68)
+exe 'vert 2resize ' . ((&columns * 84 + 127) / 254)
+exe '3resize ' . ((&lines * 32 + 34) / 68)
+exe 'vert 3resize ' . ((&columns * 84 + 127) / 254)
+exe 'vert 4resize ' . ((&columns * 84 + 127) / 254)
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf

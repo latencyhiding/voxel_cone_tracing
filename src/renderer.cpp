@@ -119,7 +119,7 @@ static void fill_default_mat_data(material_data_t& mat)
   mat.dissolve = 1;
 }
 
-renderer::renderer()
+Renderer::Renderer()
 {
   // Setup camera ubo
   glGenBuffers(1, &m_camera_ubo);
@@ -140,9 +140,18 @@ renderer::renderer()
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
   m_materials.push_back(default_material);
+
+  // Load shaders
+  m_draw_shader = load_shader("shader/passthrough.vert",
+                              "shader/passthrough.frag");
+  m_voxelize_shader = load_shader("shader/voxelize.vert",
+                                  "shader/voxelize.frag",
+                                  "shader/voxelize.geom");
+
+  set_grid_resolution(128);
 }
 
-renderer::~renderer()
+Renderer::~Renderer()
 {
   for (const auto& material : m_materials)
     glDeleteBuffers(1, &material.ubo);
@@ -155,9 +164,11 @@ renderer::~renderer()
   for (const auto& shader : m_shaders)
     destroy_program(shader.program);
   glDeleteBuffers(1, &m_camera_ubo);
+  glDeleteTextures(1, &m_voxel_grid_tex);
+
 }
 
-model_id_t renderer::load_model(const char* filename)
+model_id_t Renderer::load_model(const char* filename)
 {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -195,12 +206,8 @@ model_id_t renderer::load_model(const char* filename)
   glGenBuffers(1, &ebo);
 
   draw_obj_t new_draw_obj;
-  new_draw_obj.vao = vao;
-  new_draw_obj.vbo = vbo;
-  new_draw_obj.ebo = ebo;
   new_draw_obj.draw_type = GL_TRIANGLES;
-  new_draw_obj.shader_id = INVALID_ID;
-  new_draw_obj.material_index = 0;
+  new_draw_obj.material_id = 0;
   new_draw_obj.range.start = 0;
   new_draw_obj.range.size = 0;
 
@@ -208,8 +215,11 @@ model_id_t renderer::load_model(const char* filename)
   new_model.vao = vao;
   new_model.vbo = vbo;
   new_model.ebo = ebo;
-  new_model.draw_objs_start_index = m_draw_objs.size();
-  new_model.num_draw_objs = 0;
+  new_model.draw_obj_range.start = m_draw_objs.size();
+  new_model.draw_obj_range.size = 0; 
+
+  glm::vec3 min(FLT_MAX);
+  glm::vec3 max(0);
 
   for (const auto& shape : shapes)
   { 
@@ -225,6 +235,19 @@ model_id_t renderer::load_model(const char* filename)
         attrib.vertices[3 * index.vertex_index + 1],
         attrib.vertices[3 * index.vertex_index + 2]
       };
+
+      if (vertex.pos.x > max.x)
+        max.x = vertex.pos.x;
+      if (vertex.pos.x < min.x)
+        min.x = vertex.pos.x;
+      if (vertex.pos.y > max.y) 
+        max.y = vertex.pos.y;
+      if (vertex.pos.y < min.y)
+        min.y = vertex.pos.y;
+      if (vertex.pos.z > max.z)
+        max.z = vertex.pos.z;
+      if (vertex.pos.z < min.y)
+        min.z = vertex.pos.z; 
 
       if (index.normal_index >= 0)
       {
@@ -255,6 +278,8 @@ model_id_t renderer::load_model(const char* filename)
       indices.push_back(unique_verts[vertex]);
     }
 
+    new_model.dimensions = max - min;
+
     int current_material_id = shape.mesh.material_ids.at(0);
     size_t start = indices_base;
     size_t size = 0;
@@ -269,11 +294,11 @@ model_id_t renderer::load_model(const char* filename)
       if (current_material_id != material_id)
       {
         // push new draw object
-        new_model.num_draw_objs++;
+        new_model.draw_obj_range.size++;
 
         new_draw_obj.range.start = start;
         new_draw_obj.range.size = size;
-        new_draw_obj.material_index = material_base_index + current_material_id;
+        new_draw_obj.material_id = material_base_index + current_material_id;
 
         m_draw_objs.push_back(new_draw_obj);
 
@@ -287,11 +312,11 @@ model_id_t renderer::load_model(const char* filename)
 
     // Add the last object
 
-    new_model.num_draw_objs++;
+    new_model.draw_obj_range.size++;
 
     new_draw_obj.range.start = start;
     new_draw_obj.range.size = size;
-    new_draw_obj.material_index = material_base_index + current_material_id;
+    new_draw_obj.material_id = material_base_index + current_material_id;
     m_draw_objs.push_back(new_draw_obj);
   }
 
@@ -341,7 +366,7 @@ model_id_t renderer::load_model(const char* filename)
   return m_models.size() - 1;
 }
 
-shader_id_t renderer::load_shader(const char* vertex_shader_name,
+shader_id_t Renderer::load_shader(const char* vertex_shader_name,
     const char* fragment_shader_name,
     const char* geometry_shader_name)
 {
@@ -355,6 +380,9 @@ shader_id_t renderer::load_shader(const char* vertex_shader_name,
   new_shader.program = link_shader_program(shaders, 3);
   new_shader.material_location = glGetUniformBlockIndex(new_shader.program, "material");
   new_shader.camera_location = glGetUniformBlockIndex(new_shader.program, "camera");
+  new_shader.texture_3D_location = glGetUniformLocation(new_shader.program, "texture3D");
+  new_shader.cube_size_location = glGetUniformLocation(new_shader.program, "cube_size");
+  new_shader.model_location = glGetUniformLocation(new_shader.program, "model");
 
   m_shaders.push_back(new_shader);  
 
@@ -365,76 +393,103 @@ shader_id_t renderer::load_shader(const char* vertex_shader_name,
   destroy_shader(geom_shader); 
 }
 
-int renderer::shader_get_uniform_location(shader_id_t shader_id, const char* name)
-{
-  return glGetUniformLocation(m_shaders[shader_id].program, name);
-}
-
-void renderer::set_camera_transform(glm::mat4& lookat, glm::mat4& projection)
+void Renderer::set_camera_transform(glm::mat4& lookat, glm::mat4& projection)
 {
   m_camera.view = lookat;
   m_camera.projection = projection;
 }
 
-void renderer::queue_model(model_id_t model_id, shader_id_t shader_id, uniform_t* uniforms, size_t num_uniforms)
+glm::vec3 Renderer::get_model_dimensions(model_id_t model)
+{
+  return m_models[model].dimensions;
+}
+
+void Renderer::set_grid_resolution(unsigned int res)
+{
+  if (m_voxel_grid_tex)
+    glDeleteTextures(1, &m_voxel_grid_tex);
+
+  // Setup 3d texture
+  glGenTextures(1, &m_voxel_grid_tex);
+  glBindTexture(GL_TEXTURE_3D, m_voxel_grid_tex);
+
+  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+
+  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  
+  glTexStorage3D(GL_TEXTURE_3D, 7, GL_RGBA8, res, res, res);
+  glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, res, res, res, 0, GL_RGBA, GL_FLOAT, NULL);
+  
+  glGenerateMipmap(GL_TEXTURE_3D);
+  glBindTexture(GL_TEXTURE_3D, 0);
+}
+
+void Renderer::set_grid_size(float size)
+{
+  m_cube_size = size;
+}
+
+void Renderer::queue_model(model_id_t model_id)
 {
   if (model_id >= m_models.size())
     return;
 
-  model_t& model = m_models[model_id];
+  model_t model = m_models[model_id];
 
-  buffer_range_t uniform_range;
-  uniform_range.start = m_uniforms.size();
-  uniform_range.size = num_uniforms;
+  // Push model 
+  model.shader_id = m_draw_shader; 
+  m_draw_queue.push_back(model);
 
-  // Push uniforms
-  for (size_t i = 0; i < num_uniforms; i++)
-    m_uniforms.push_back(uniforms[i]);
-
-  // Push draw objects
-  for (size_t i = 0; i < model.num_draw_objs; i++)
-  {
-    draw_obj_t& draw_obj = m_draw_objs[i + model.draw_objs_start_index];
-    draw_obj.shader_id = shader_id;
-    draw_obj.uniform_range = uniform_range;
-
-    m_draw_queue.push_back(draw_obj);
-  }
+  model.shader_id = m_voxelize_shader;
+  m_voxel_queue.push_back(model);
 }
 
-void renderer::upload_uniforms(buffer_range_t& uniforms_range)
+void Renderer::set_model_transform(model_id_t model_id, glm::mat4 model_matrix)
 {
-  for (size_t i = uniforms_range.start; i < uniforms_range.start + uniforms_range.size; i++)
-  {
-    uniform_t& uniform = m_uniforms[i];
-    switch (uniform.type)
-    {
-      case uniform_t::MAT4:
-        glUniformMatrix4fv(uniform.location, 1, false, glm::value_ptr(uniform.mat4));
-        break;
-      case uniform_t::VEC3:
-        glUniform3fv(uniform.location, 1, glm::value_ptr(uniform.vec3));
-        break;
-      default:
-        break;
-    };
-  }
+  m_models[model_id].model_matrix = model_matrix;
 }
 
-void renderer::bind_material(material_t& material, int location)
+material_t& Renderer::get_material(material_id_t material_id)
+{
+  return m_materials[material_id];
+}
+
+void Renderer::bind_material(material_t& material, int location)
 {
   glBindBufferBase(GL_UNIFORM_BUFFER, location, material.ubo);
-
-  for (size_t i = 0; i < material.num_textures; i++)
-  {
-    glActiveTexture(GL_TEXTURE0 + i);
-    glBindTexture(GL_TEXTURE_2D, material.textures[i]);
-  }
-
-  glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void renderer::render()
+void Renderer::render_queue(std::vector<model_t>& draw_queue)
+{
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_3D, m_voxel_grid_tex);
+
+  for (auto& model : draw_queue)
+  {
+    shader_t& shader = m_shaders[model.shader_id];
+    glUseProgram(shader.program);
+    glUniform1i(shader.texture_3D_location, 0);
+    glUniform1f(shader.cube_size_location, m_cube_size); 
+    glUniformMatrix4fv(shader.model_location, 1, false, glm::value_ptr(model.model_matrix));
+
+    glBindVertexArray(model.vao);
+
+    for (size_t i = 0; i < model.draw_obj_range.size; i++)
+    {
+      draw_obj_t& draw_obj = m_draw_objs[model.draw_obj_range.start + i];
+      // Bind ubos for camera and materials
+      glBindBufferBase(GL_UNIFORM_BUFFER, shader.camera_location, m_camera_ubo);
+      bind_material(m_materials[draw_obj.material_id], shader.material_location);
+
+      glDrawElements(draw_obj.draw_type, draw_obj.range.size, GL_UNSIGNED_INT, (const void*) (sizeof(unsigned) * draw_obj.range.start));
+    }
+  }
+}
+
+void Renderer::render()
 {
   glBindBuffer(GL_UNIFORM_BUFFER, m_camera_ubo);
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(camera_data_t), &m_camera);
@@ -444,47 +499,9 @@ void renderer::render()
   glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  draw_obj_t cached_draw_obj = {0};
-  cached_draw_obj.shader_id = INVALID_ID;
+  render_queue(m_voxel_queue);
+  render_queue(m_draw_queue);
 
-  for (auto& draw_obj : m_draw_queue)
-  {
-    // Bind vao
-    if (draw_obj.vao != cached_draw_obj.vao)
-    {
-      cached_draw_obj.vao = draw_obj.vao;
-      glBindVertexArray(draw_obj.vao);
-    }
-
-    // Bind shaders
-    if (draw_obj.shader_id != cached_draw_obj.shader_id)
-    {
-      cached_draw_obj.shader_id = draw_obj.shader_id;
-
-      shader_t& shader = m_shaders[draw_obj.shader_id];
-      glUseProgram(shader.program);
-
-      // Bind ubos for camera and materials
-      glBindBufferBase(GL_UNIFORM_BUFFER, shader.camera_location, m_camera_ubo);
-      bind_material(m_materials[draw_obj.material_index], shader.material_location);
-    }
-
-    // Bind uniforms, bind materials
-    if (draw_obj.material_index != cached_draw_obj.material_index)
-    {
-      cached_draw_obj.material_index = draw_obj.material_index;
-
-      shader_t& shader = m_shaders[draw_obj.shader_id];
-      material_t& material = m_materials[draw_obj.material_index];
-
-      bind_material(material, shader.material_location);
-    }
-
-    upload_uniforms(draw_obj.uniform_range);
-
-    glDrawElements(draw_obj.draw_type, draw_obj.range.size, GL_UNSIGNED_INT, (const void*) (sizeof(unsigned) * draw_obj.range.start));
-  }
-
-  m_uniforms.clear();
+  m_voxel_queue.clear();
   m_draw_queue.clear();
 }

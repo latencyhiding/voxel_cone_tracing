@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "shared.h"
+#include "camera.h"
 
 #include <glm/glm.hpp>
 
@@ -21,6 +22,7 @@ typedef GLuint shader_program_t;
 #define INVALID_ID (~0)
 typedef size_t model_id_t;
 typedef size_t shader_id_t;
+typedef size_t material_id_t;
 
 // Uniforms are copied to a host-memory buffer which is then uploaded as a
 // whole to the GPU on submit time.
@@ -45,23 +47,19 @@ typedef struct
   shader_program_t program;
   int material_location;
   int camera_location;
+  int texture_3D_location;
+  int cube_size_location;
+  int model_location;
 } shader_t;
 
 // Maps to a vbo, a vao, an ebo, a range each for uniforms and indices/vertices
 typedef struct
 {
-  GLuint vao;
-  GLuint vbo;
-  GLuint ebo;
-
   buffer_range_t range;
   
   GLenum draw_type;
   
-  shader_id_t shader_id;
-  size_t material_index;
-
-  buffer_range_t uniform_range;
+  material_id_t material_id;
 } draw_obj_t;
 
 // Group of draw_objs that share buffer resources
@@ -71,26 +69,13 @@ typedef struct
   GLuint vbo;
   GLuint ebo;
 
-  size_t draw_objs_start_index;
-  size_t num_draw_objs;
+  buffer_range_t draw_obj_range;
+
+  shader_id_t shader_id;
+
+  glm::vec3 dimensions;
+  glm::mat4 model_matrix;
 } model_t;
-
-typedef struct
-{
-  enum
-  {
-    MAT4,
-    VEC3
-  } type;
-
-  union
-  {
-    glm::mat4 mat4;
-    glm::vec3 vec3;
-  };
-
-  int location;
-} uniform_t;
 
 typedef struct
 {
@@ -98,11 +83,11 @@ typedef struct
   glm::mat4 view;
 } camera_data_t;
 
-struct renderer
+struct Renderer
 {
-  renderer();
+  Renderer();
 
-  ~renderer(); 
+  ~Renderer(); 
 
   // Resource 
 
@@ -110,18 +95,24 @@ struct renderer
   shader_id_t load_shader(const char* vertex_shader_name,
                           const char* fragment_shader_name,
                           const char* geometry_shader_name = NULL);
-  int shader_get_uniform_location(shader_id_t, const char* name);
-
+  glm::vec3 get_model_dimensions(model_id_t model);
+  void set_grid_resolution(unsigned int res);
+  void set_grid_size(float size);
+  
   void set_camera_transform(glm::mat4& lookat, glm::mat4& projection);
+  void set_model_transform(model_id_t model_id, glm::mat4 model_matrix);
+
+  material_t& get_material(material_id_t material_id);
 
   // Render
 
-  void queue_model(model_id_t model_id, shader_id_t shader_id, uniform_t* uniforms, size_t num_uniforms);
+  void queue_model(model_id_t model_id);
   void render();
 
 private:
-  void upload_uniforms(buffer_range_t& uniforms_range);
   void bind_material(material_t& material, int location);
+
+  void render_queue(std::vector<model_t>& draw_queue);
 
   // Lifetime
 
@@ -133,10 +124,14 @@ private:
   GLuint m_camera_ubo;
   camera_data_t m_camera;
 
+  float m_cube_size;
+  GLuint m_voxel_grid_tex;
+
   // Per frame
 
-  std::vector<uniform_t> m_uniforms;
+  std::vector<model_t> m_voxel_queue;
+  std::vector<model_t> m_draw_queue;
 
-  // temp, replace this with command buffer
-  std::vector<draw_obj_t> m_draw_queue;
+  shader_id_t m_voxelize_shader;
+  shader_id_t m_draw_shader;
 };

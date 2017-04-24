@@ -10,9 +10,9 @@ layout (binding = 0) uniform camera
   mat4 view;
 };
 
-out VS_OUT
+out vs_out
 {
-  vec4 position;
+  vec4 world_position;
   vec3 normal;
   vec2 uv;
 } vs_out;
@@ -21,8 +21,8 @@ uniform mat4 model;
 
 void main()
 {
-  gl_Position = projection * view * model * vec4(position, 1.0);
-  vs_out.position = vec4(position, 1.0);
+  vs_out.position = model * vec4(position, 1.0);
+  gl_Position = projection * view * vs_out.position;
   vs_out.normal = normal;
   vs_out.uv = uv;
 }
