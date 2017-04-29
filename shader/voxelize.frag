@@ -1,4 +1,4 @@
-#version 430
+#version 450 core
 
 in GS_OUT 
 {
@@ -30,8 +30,6 @@ layout (std140, binding = 1) uniform material
 
 layout (RGBA8) uniform image3D texture3D;
 
-uniform float cube_size;
-
 vec3 scale_and_bias(const vec3 p)
 {
   return 0.5f * p + vec3(0.5f);
@@ -44,7 +42,7 @@ bool within_cube(const vec3 p, float error)
 
 void main()
 {
-  vec3 pos = gs_out.world_position.xyz / cube_size;
+  vec3 pos = gs_out.world_position.xyz;
 
   if (!within_cube(pos, 0));
     return;
@@ -54,7 +52,7 @@ void main()
   vec4 color = vec4(ambient, 1);
 
   // Output to 3D texture
-  vec3 voxel_pos = scale_and_bias(pos);
   ivec3 dim = imageSize(texture3D);
-  imageStore(texture3D, ivec3(dim * voxel_pos), color);
+  ivec3 voxel_pos = ivec3(dim * scale_and_bias(pos));
+  imageStore(texture3D, voxel_pos, color);
 }

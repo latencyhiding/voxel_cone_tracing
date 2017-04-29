@@ -85,7 +85,7 @@ typedef struct
 
 struct Renderer
 {
-  Renderer();
+  Renderer(int width, int height);
 
   ~Renderer(); 
 
@@ -110,9 +110,10 @@ struct Renderer
   void render();
 
 private:
+  void draw_model(const model_t& model, const shader_t& shader);
+  void voxelize();
+  void visualize();
   void bind_material(material_t& material, int location);
-
-  void render_queue(std::vector<model_t>& draw_queue);
 
   // Lifetime
 
@@ -126,10 +127,12 @@ private:
 
   float m_cube_size;
   GLuint m_voxel_grid_tex;
+  size_t m_resolution;
+
+  int m_viewport_width, m_viewport_height;
 
   // Per frame
 
-  std::vector<model_t> m_voxel_queue;
   std::vector<model_t> m_draw_queue;
 
   shader_id_t m_voxelize_shader;

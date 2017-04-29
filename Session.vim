@@ -9,19 +9,20 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
 endif
 set shortmess=aoO
 badd +36 shader/passthrough.frag
-badd +24 shader/passthrough.vert
+badd +2 shader/passthrough.vert
 badd +17 src/pass.h
 badd +1 lib/gl_utils/include/gl_utils/gl_helpers.h
-badd +115 src/renderer.h
+badd +131 src/renderer.h
 badd +60 src/camera.h
-badd +64 src/main.cpp
-badd +26 shader/voxelize.vert
-badd +26 shader/voxelize.geom
+badd +62 src/main.cpp
+badd +1 shader/voxelize.vert
+badd +27 shader/voxelize.geom
 badd +1 src/device.cpp
 badd +15 src/command_bucket.h
 badd +461 src/renderer.cpp
-badd +24 shader/voxel_cone_tracing.vert
-badd +0 shader/voxel_cone_tracing.frag
+badd +19 shader/voxel_cone_tracing.vert
+badd +35 shader/voxel_cone_tracing.frag
+badd +39 shader/voxelize.frag
 argglobal
 silent! argdel *
 argadd src/renderer.cpp
@@ -60,15 +61,15 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 119 - ((32 * winheight(0) + 16) / 33)
+let s:l = 137 - ((32 * winheight(0) + 16) / 33)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-119
+137
 normal! 0
 wincmd w
 argglobal
-edit shader/voxel_cone_tracing.frag
+edit shader/voxelize.vert
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -78,15 +79,15 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 16) / 32)
+let s:l = 23 - ((22 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 0
+23
+normal! 03|
 wincmd w
 argglobal
-edit shader/voxel_cone_tracing.vert
+edit shader/voxelize.geom
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -96,11 +97,11 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 24 - ((23 * winheight(0) + 16) / 32)
+let s:l = 11 - ((0 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-24
+11
 normal! 0
 wincmd w
 argglobal
@@ -114,12 +115,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 395 - ((49 * winheight(0) + 33) / 66)
+let s:l = 540 - ((64 * winheight(0) + 33) / 66)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-395
-normal! 0
+540
+normal! 021|
 wincmd w
 3wincmd w
 exe '1resize ' . ((&lines * 33 + 34) / 68)

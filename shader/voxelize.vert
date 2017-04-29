@@ -1,4 +1,4 @@
-#version 430
+#version 450 core
 
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
@@ -20,9 +20,11 @@ out VS_OUT
   vec2 uv;
 } vs_out;
 
+uniform float cube_size;
+
 void main()
 {
-  vs_out.world_position = model * vec4(position, 1.0);
+  vs_out.world_position = (model * vec4(position, 1.0)) / cube_size;
   gl_Position = projection * view * vs_out.world_position;
   vs_out.normal = normal;
   vs_out.uv = uv;

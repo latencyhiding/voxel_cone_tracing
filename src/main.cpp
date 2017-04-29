@@ -41,7 +41,7 @@ int main()
   glfwSetErrorCallback(error_callback);
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
@@ -59,7 +59,7 @@ int main()
 
   glfwSetKeyCallback(window, key_callback);
 
-  Renderer renderer;
+  Renderer renderer(WIDTH, HEIGHT);
   model_id_t model = renderer.load_model("assets/cornell-box.obj");
   glm::vec3 dims = renderer.get_model_dimensions(model);
   renderer.set_grid_size(20);
