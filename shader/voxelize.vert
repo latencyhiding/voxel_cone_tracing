@@ -24,7 +24,7 @@ uniform float cube_size;
 
 void main()
 {
-  vs_out.world_position = (model * vec4(position, 1.0)) / cube_size;
+  vs_out.world_position = model * vec4(position / cube_size, 1.0);
   gl_Position = projection * view * vs_out.world_position;
   vs_out.normal = normal;
   vs_out.uv = uv;

@@ -23,7 +23,7 @@ void main()
   // Get triangle normal
   const vec3 p1 = vs_out[1].world_position.xyz - vs_out[0].world_position.xyz;
   const vec3 p2 = vs_out[2].world_position.xyz - vs_out[0].world_position.xyz;
-  const vec3 p = abs(normalize(cross(p1, p2)));
+  const vec3 p = abs(cross(p1, p2));
 
   // For each vertex emit a projected vertex based on the axis with the
   // largest projection

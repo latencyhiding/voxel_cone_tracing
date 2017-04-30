@@ -37,7 +37,7 @@ int main()
   GLFWwindow* window;
   if (!glfwInit())
     exit(EXIT_FAILURE);
-  
+
   glfwSetErrorCallback(error_callback);
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -45,16 +45,17 @@ int main()
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-  
+  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+
   window = glfwCreateWindow(WIDTH, HEIGHT, "", NULL, NULL);
   if (!window)
   {
     glfwTerminate();
     exit(EXIT_FAILURE);
   }
-  
+
   glfwMakeContextCurrent(window);
-  
+
   gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
 
   glfwSetKeyCallback(window, key_callback);
@@ -66,7 +67,7 @@ int main()
 
   Camera camera(glm::vec3(-0.118010, 8.581252, 28.632803), 0, -90);
   camera.set_perspective(45.0f, (float) WIDTH / (float) HEIGHT, 1.0f, 100.0f);
- 
+
   static float init_move_speed = 0.01;
   static float init_camera_rot_amount = 0.01;
 
@@ -90,7 +91,7 @@ int main()
     glfwGetCursorPos(window, &new_mouse_x, &new_mouse_y);
 
     camera.add_rot(-camera_rot_amount * (new_mouse_y - mouse_y)
-                   , camera_rot_amount * (new_mouse_x - mouse_x));
+        , camera_rot_amount * (new_mouse_x - mouse_x));
 
     mouse_x = new_mouse_x;
     mouse_y = new_mouse_y;

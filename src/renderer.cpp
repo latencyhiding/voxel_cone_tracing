@@ -122,6 +122,7 @@ static void fill_default_mat_data(material_data_t& mat)
 Renderer::Renderer(int width, int height)
   : m_viewport_width(width)
   , m_viewport_height(height)
+  , m_voxel_grid_tex(0)
 {
   // Setup camera ubo
   glGenBuffers(1, &m_camera_ubo);
@@ -378,8 +379,13 @@ shader_id_t Renderer::load_shader(const char* vertex_shader_name,
 
   GLuint shaders[3] = { vert_shader, frag_shader, geom_shader };
 
+  int num_shaders = 3;
+
+  if (!geometry_shader_name)
+    num_shaders = 2;
+
   shader_t new_shader;
-  new_shader.program = link_shader_program(shaders, 3);
+  new_shader.program = link_shader_program(shaders, num_shaders);
   new_shader.material_location = glGetUniformBlockIndex(new_shader.program, "material");
   new_shader.camera_location = glGetUniformBlockIndex(new_shader.program, "camera");
   new_shader.texture_3D_location = glGetUniformLocation(new_shader.program, "texture3D");
@@ -388,11 +394,13 @@ shader_id_t Renderer::load_shader(const char* vertex_shader_name,
 
   m_shaders.push_back(new_shader);  
 
-  detach_shaders(new_shader.program, shaders, 3);
+  detach_shaders(new_shader.program, shaders, 2);
 
   destroy_shader(vert_shader);
   destroy_shader(frag_shader);
-  destroy_shader(geom_shader); 
+
+  if (geometry_shader_name)
+    destroy_shader(geom_shader); 
 }
 
 void Renderer::set_camera_transform(glm::mat4& lookat, glm::mat4& projection)
@@ -421,10 +429,12 @@ void Renderer::set_grid_resolution(unsigned int res)
 
   glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  
+
   glTexStorage3D(GL_TEXTURE_3D, 7, GL_RGBA8, res, res, res);
-  glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, res, res, res, 0, GL_RGBA, GL_FLOAT, NULL);
-  
+
+  std::vector<GLfloat> tex(4 * res * res * res, 0.0f);
+  glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, res, res, res, 0, GL_RGBA, GL_FLOAT, &tex[0]);
+
   glGenerateMipmap(GL_TEXTURE_3D);
   glBindTexture(GL_TEXTURE_3D, 0);
 
@@ -492,7 +502,7 @@ void Renderer::voxelize()
   // Render scene
   shader_t& shader = m_shaders[m_voxelize_shader];
   glUseProgram(shader.program);
-  
+
   // Set render settings
   glViewport(0, 0, m_resolution, m_resolution);
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -555,6 +565,7 @@ void Renderer::render()
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
   glClearColor(0.15, 0.25, 0.25, 1.0);
+
   voxelize();
   visualize();
 

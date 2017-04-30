@@ -8,18 +8,18 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
+badd +1 src/renderer.cpp
 badd +36 shader/passthrough.frag
 badd +2 shader/passthrough.vert
 badd +17 src/pass.h
 badd +1 lib/gl_utils/include/gl_utils/gl_helpers.h
-badd +131 src/renderer.h
+badd +140 src/renderer.h
 badd +60 src/camera.h
-badd +62 src/main.cpp
-badd +1 shader/voxelize.vert
+badd +80 src/main.cpp
+badd +26 shader/voxelize.vert
 badd +27 shader/voxelize.geom
 badd +1 src/device.cpp
 badd +15 src/command_bucket.h
-badd +461 src/renderer.cpp
 badd +19 shader/voxel_cone_tracing.vert
 badd +35 shader/voxel_cone_tracing.frag
 badd +39 shader/voxelize.frag
@@ -44,13 +44,13 @@ set nosplitbelow
 set nosplitright
 wincmd t
 set winheight=1 winwidth=1
-exe '1resize ' . ((&lines * 33 + 34) / 68)
-exe 'vert 1resize ' . ((&columns * 169 + 127) / 254)
-exe '2resize ' . ((&lines * 32 + 34) / 68)
-exe 'vert 2resize ' . ((&columns * 84 + 127) / 254)
-exe '3resize ' . ((&lines * 32 + 34) / 68)
-exe 'vert 3resize ' . ((&columns * 84 + 127) / 254)
-exe 'vert 4resize ' . ((&columns * 84 + 127) / 254)
+exe '1resize ' . ((&lines * 34 + 35) / 71)
+exe 'vert 1resize ' . ((&columns * 180 + 135) / 271)
+exe '2resize ' . ((&lines * 34 + 35) / 71)
+exe 'vert 2resize ' . ((&columns * 89 + 135) / 271)
+exe '3resize ' . ((&lines * 34 + 35) / 71)
+exe 'vert 3resize ' . ((&columns * 90 + 135) / 271)
+exe 'vert 4resize ' . ((&columns * 90 + 135) / 271)
 argglobal
 setlocal fdm=manual
 setlocal fde=0
@@ -61,15 +61,15 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 137 - ((32 * winheight(0) + 16) / 33)
+let s:l = 34 - ((16 * winheight(0) + 17) / 34)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-137
+34
 normal! 0
 wincmd w
 argglobal
-edit shader/voxelize.vert
+edit shader/voxelize.frag
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -79,12 +79,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 23 - ((22 * winheight(0) + 16) / 32)
+let s:l = 46 - ((20 * winheight(0) + 17) / 34)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-23
-normal! 03|
+46
+normal! 0
 wincmd w
 argglobal
 edit shader/voxelize.geom
@@ -97,11 +97,11 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 11 - ((0 * winheight(0) + 16) / 32)
+let s:l = 35 - ((17 * winheight(0) + 17) / 34)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-11
+35
 normal! 0
 wincmd w
 argglobal
@@ -115,21 +115,21 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 540 - ((64 * winheight(0) + 33) / 66)
+let s:l = 387 - ((48 * winheight(0) + 34) / 69)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-540
-normal! 021|
+387
+normal! 022|
 wincmd w
-3wincmd w
-exe '1resize ' . ((&lines * 33 + 34) / 68)
-exe 'vert 1resize ' . ((&columns * 169 + 127) / 254)
-exe '2resize ' . ((&lines * 32 + 34) / 68)
-exe 'vert 2resize ' . ((&columns * 84 + 127) / 254)
-exe '3resize ' . ((&lines * 32 + 34) / 68)
-exe 'vert 3resize ' . ((&columns * 84 + 127) / 254)
-exe 'vert 4resize ' . ((&columns * 84 + 127) / 254)
+4wincmd w
+exe '1resize ' . ((&lines * 34 + 35) / 71)
+exe 'vert 1resize ' . ((&columns * 180 + 135) / 271)
+exe '2resize ' . ((&lines * 34 + 35) / 71)
+exe 'vert 2resize ' . ((&columns * 89 + 135) / 271)
+exe '3resize ' . ((&lines * 34 + 35) / 71)
+exe 'vert 3resize ' . ((&columns * 90 + 135) / 271)
+exe 'vert 4resize ' . ((&columns * 90 + 135) / 271)
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
