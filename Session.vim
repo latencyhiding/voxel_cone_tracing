@@ -14,8 +14,7 @@ badd +2 shader/passthrough.vert
 badd +17 src/pass.h
 badd +1 lib/gl_utils/include/gl_utils/gl_helpers.h
 badd +121 src/renderer.h
-badd +1 src/camera.h
-badd +70 src/main.cpp
+badd +129 src/main.cpp
 badd +30 shader/voxelize.vert
 badd +27 shader/voxelize.geom
 badd +1 src/device.cpp
@@ -68,12 +67,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 76 - ((21 * winheight(0) + 16) / 33)
+let s:l = 66 - ((20 * winheight(0) + 16) / 33)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-76
-normal! 0
+66
+normal! 066|
 wincmd w
 argglobal
 edit shader/voxelize.frag
@@ -86,12 +85,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 64 - ((26 * winheight(0) + 16) / 33)
+let s:l = 91 - ((25 * winheight(0) + 16) / 33)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-64
-normal! 03|
+91
+normal! 055|
 wincmd w
 argglobal
 edit shader/voxelize.vert
@@ -104,12 +103,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 25 - ((23 * winheight(0) + 16) / 32)
+let s:l = 27 - ((25 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-25
-normal! 0
+27
+normal! 049|
 wincmd w
 argglobal
 edit shader/voxelize.geom
@@ -122,12 +121,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 2 - ((0 * winheight(0) + 16) / 32)
+let s:l = 37 - ((13 * winheight(0) + 16) / 32)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-2
-normal! 0
+37
+normal! 036|
 wincmd w
 argglobal
 edit src/renderer.cpp
@@ -140,13 +139,14 @@ setlocal fml=1
 setlocal fdn=20
 setlocal nofen
 silent! normal! zE
-let s:l = 294 - ((40 * winheight(0) + 33) / 66)
+let s:l = 102 - ((44 * winheight(0) + 33) / 66)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-294
-normal! 024|
+102
+normal! 0
 wincmd w
+2wincmd w
 exe '1resize ' . ((&lines * 33 + 34) / 68)
 exe 'vert 1resize ' . ((&columns * 84 + 127) / 254)
 exe '2resize ' . ((&lines * 33 + 34) / 68)

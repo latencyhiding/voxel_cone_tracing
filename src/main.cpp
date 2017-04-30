@@ -60,15 +60,21 @@ int main()
 
   glfwSetKeyCallback(window, key_callback);
 
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+
   Renderer renderer(WIDTH, HEIGHT);
-  model_id_t model = renderer.load_model("assets/cornell-box.obj");
+  model_id_t model = renderer.load_model("assets/CornellBox-Glossy.obj");
   glm::vec3 dims = renderer.get_model_dimensions(model);
-  renderer.set_grid_size(20);
+  renderer.set_grid_size(2);
 
-  Camera camera(glm::vec3(-0.118010, 8.581252, 28.632803), 0, -90);
-  camera.set_perspective(45.0f, (float) WIDTH / (float) HEIGHT, 1.0f, 100.0f);
+  Camera camera(glm::vec3(0, .75, 3), 0, -90);
+  camera.set_perspective(45.0f, (float) WIDTH / (float) HEIGHT, 0.1f, 100.0f);
 
-  static float init_move_speed = 0.01;
+  point_light_t light;
+  light.position = glm::vec3(15, 15, 0);
+  light.color = glm::vec3(1.0, 1.0, 1.0);
+
+  static float init_move_speed = 0.005;
   static float init_camera_rot_amount = 0.01;
 
   double mouse_x, mouse_y;
@@ -123,12 +129,14 @@ int main()
       dy = -move_speed;
 
     camera.move(dx, dy, dz);
+    light.position = camera.m_pos;
 
     renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
 
     glm::mat4 model_matrix;
     renderer.set_model_transform(model, model_matrix);
     renderer.queue_model(model);
+    renderer.queue_point_light(light);
 
     renderer.render();
     glfwSwapBuffers(window);

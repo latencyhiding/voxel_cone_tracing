@@ -3,6 +3,7 @@
 // TODO: Write your own damn object loader
 // TODO: Support textures
 // TODO: Materials should not just bind 2D textures
+// TODO: Calculate normals if not provided
 
 #include <tinyobjloader/tiny_obj_loader.h>
 #include <unordered_map>
@@ -53,10 +54,13 @@ typedef struct
   float diffuse[4];
   float specular[4];
   float transmittance[4];
-  float emission[4];
+  float emission[3];
+
   float shininess;
   float ior;       // index of refraction
   float dissolve;  // 1 == opaque; 0 == fully transparent
+
+  int illum;
 
   // PBR extension
   float roughness;            // [0, 1] default 0
@@ -66,6 +70,8 @@ typedef struct
   float clearcoat_roughness;  // [0, 1] default 0
   float anisotropy;           // aniso. [0, 1] default 0
   float anisotropy_rotation;  // anisor. [0, 1] default 0
+
+  float pad[2];
 } material_data_t;
 #pragma pack(pop)
 
@@ -85,6 +91,7 @@ void create_material(const tinyobj::material_t& material, material_t* result)
   mat_data.shininess = material.shininess;
   mat_data.ior = material.ior;
   mat_data.dissolve = material.dissolve;
+  mat_data.illum = material.illum;
   mat_data.roughness = material.roughness;
   mat_data.metallic = material.metallic;
   mat_data.sheen = material.sheen;
@@ -117,6 +124,7 @@ static void fill_default_mat_data(material_data_t& mat)
   mat.shininess = 0;
   mat.ior = 0.4;
   mat.dissolve = 1;
+  mat.illum = 0;
 }
 
 Renderer::Renderer(int width, int height)
@@ -266,8 +274,11 @@ void Renderer::upload_lights(const shader_t& shader)
 {
   for (size_t i = 0; i < m_point_lights.size(); i++)
   {
-    glUniform3fv(glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].position").c_str()), 1, glm::value_ptr(m_point_lights[i].position));
-    glUniform3fv(glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].color").c_str()), 1, glm::value_ptr(m_point_lights[i].position));
+    int position_location = glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].position").c_str());
+    int color_location = glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].color").c_str());
+
+    glUniform3fv(position_location, 1, glm::value_ptr(m_point_lights[i].position));
+    glUniform3fv(color_location, 1, glm::value_ptr(m_point_lights[i].color));
   }
 
   glUniform1i(glGetUniformLocation(shader.program, "point_light_count"), m_point_lights.size());
@@ -360,6 +371,7 @@ void Renderer::render()
   visualize();
 
   m_draw_queue.clear();
+  m_point_lights.clear();
 }
 
 model_id_t Renderer::load_model(const char* filename)
@@ -580,7 +592,6 @@ shader_id_t Renderer::load_shader(const char* vertex_shader_name,
   new_shader.material_location = glGetUniformBlockIndex(new_shader.program, "material");
   new_shader.camera_location = glGetUniformBlockIndex(new_shader.program, "camera");
   new_shader.texture_3D_location = glGetUniformLocation(new_shader.program, "tex3D");
-  printf("%u, %s, %d\n", new_shader.program, vertex_shader_name, new_shader.texture_3D_location);
 
   new_shader.cube_size_location = glGetUniformLocation(new_shader.program, "cube_size");
   new_shader.model_location = glGetUniformLocation(new_shader.program, "model");

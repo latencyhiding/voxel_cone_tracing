@@ -19,6 +19,8 @@ layout (std140, binding = 1) uniform material
   float ior;
   float dissolve;
 
+  int illum;
+
   float roughness;
   float metallic;
   float sheen;
@@ -50,6 +52,13 @@ bool within_cube(const vec3 p, float error)
   return abs(p.x) < 1 + error && abs(p.y) < 1 + error && abs(p.z) < 1 + error;
 }
 
+float attenuate(float k, float l, float q, float d)
+{
+  return 1.0f / (k + l * d + q * d * d);
+}
+
+uniform float cube_size;
+
 void main()
 {
   vec3 pos = gs_out.world_position.xyz;
@@ -57,17 +66,30 @@ void main()
   //if (!within_cube(pos, 0));
   //  return;
 
+  vec3 color = vec3(0.0f);
+
   // Calculate lighting
   int num_lights = min(point_light_count, MAX_POINT_LIGHTS);
   for (int i = 0; i < num_lights; i++)
   {
+    const vec3 light_pos = point_lights[i].position / cube_size;
+    const vec3 dir = normalize(light_pos - gs_out.world_position.xyz);
+    const float d = distance(light_pos, gs_out.world_position.xyz);
+    const float a = attenuate(1, 0, 1, d);
+    float cos_surf = max(dot(normalize(gs_out.normal), dir), 0.0f);
+
+    // Temperorary measure as for some reason the winding is wrong
+    
+    color += cos_surf * a * point_lights[i].color;
   }
 
-  // For now simply store the ambient color
-  vec3 color = vec3(0.0f);
-  color = ambient;
+  color *= (diffuse + specular);
+  color += emission;
 
   vec4 final_color = vec4(color, 1);
+  
+  // TODO: Transmittance filter and index of refraction
+  final_color *= pow(dissolve, 4);
 
   // Output to 3D texture
   ivec3 dim = imageSize(tex3D);

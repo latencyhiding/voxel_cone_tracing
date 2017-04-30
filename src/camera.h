@@ -62,7 +62,6 @@ struct Camera
       return m_projection;
     }
 
-  private:
     glm::vec3 m_pos;
     glm::vec3 m_front;
     glm::vec3 m_up;
