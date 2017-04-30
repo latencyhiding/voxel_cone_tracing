@@ -17,6 +17,10 @@ out GS_OUT
   vec2 uv;
 } gs_out;
 
+vec3 scale_and_bias(const vec3 p)
+{
+  return 0.5f * p + vec3(0.5f);
+}
 
 void main()
 {

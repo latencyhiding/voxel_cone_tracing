@@ -83,6 +83,12 @@ typedef struct
   glm::mat4 view;
 } camera_data_t;
 
+typedef struct
+{
+  glm::vec3 position;
+  glm::vec3 color;
+} point_light_t;
+
 struct Renderer
 {
   Renderer(int width, int height);
@@ -107,10 +113,12 @@ struct Renderer
   // Render
 
   void queue_model(model_id_t model_id);
+  void queue_point_light(point_light_t& point_light);
   void render();
 
 private:
   void draw_model(const model_t& model, const shader_t& shader);
+  void upload_lights(const shader_t& shader);
   void voxelize();
   void visualize();
   void bind_material(material_t& material, int location);
@@ -134,6 +142,7 @@ private:
   // Per frame
 
   std::vector<model_t> m_draw_queue;
+  std::vector<point_light_t> m_point_lights;
 
   shader_id_t m_voxelize_shader;
   shader_id_t m_draw_shader;

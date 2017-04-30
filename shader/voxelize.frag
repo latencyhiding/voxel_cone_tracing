@@ -28,7 +28,17 @@ layout (std140, binding = 1) uniform material
   float anisotropy_rotation;
 };
 
-layout (RGBA8) uniform image3D texture3D;
+struct point_light
+{
+  vec3 position;
+  vec3 color;
+};
+
+#define MAX_POINT_LIGHTS 10
+uniform point_light point_lights[MAX_POINT_LIGHTS];
+uniform int point_light_count;
+
+uniform layout (RGBA8) image3D tex3D;
 
 vec3 scale_and_bias(const vec3 p)
 {
@@ -44,15 +54,24 @@ void main()
 {
   vec3 pos = gs_out.world_position.xyz;
 
-  if (!within_cube(pos, 0));
-    return;
+  //if (!within_cube(pos, 0));
+  //  return;
 
   // Calculate lighting
+  int num_lights = min(point_light_count, MAX_POINT_LIGHTS);
+  for (int i = 0; i < num_lights; i++)
+  {
+  }
+
   // For now simply store the ambient color
-  vec4 color = vec4(ambient, 1);
+  vec3 color = vec3(0.0f);
+  color = ambient;
+
+  vec4 final_color = vec4(color, 1);
 
   // Output to 3D texture
-  ivec3 dim = imageSize(texture3D);
+  ivec3 dim = imageSize(tex3D);
   ivec3 voxel_pos = ivec3(dim * scale_and_bias(pos));
-  imageStore(texture3D, voxel_pos, color);
+
+  imageStore(tex3D, voxel_pos, final_color);
 }

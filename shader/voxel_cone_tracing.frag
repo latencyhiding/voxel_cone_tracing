@@ -9,7 +9,7 @@ in VS_OUT
 
 out vec4 final_color;
 
-uniform sampler3D texture3D;
+uniform sampler3D tex3D;
 
 uniform float cube_size;
 
@@ -31,5 +31,5 @@ void main()
     return;
 
   vec3 voxel_pos = scale_and_bias(pos);
-  final_color = textureLod(texture3D, voxel_pos, 0.0f);
+  final_color = textureLod(tex3D, voxel_pos, 0);
 }

@@ -90,7 +90,7 @@ GLuint load_shader_source(const char* pathname, GLenum shader_type)
   FILE* file = NULL;
   size_t file_size;
   char* shader_string_buffer;
-  
+
   file = fopen(pathname, "r+");
   if (!file)
   {
@@ -110,7 +110,7 @@ GLuint load_shader_source(const char* pathname, GLenum shader_type)
   shader_string_buffer[file_size] = 0;
 
   result = compile_shader(shader_string_buffer, file_size, shader_type);
-  
+
   free(shader_string_buffer);
   fclose(file);
   return result;
@@ -128,7 +128,7 @@ GLuint link_shader_program(GLuint* shaders, size_t num_shaders)
 {
   if (!shaders)
     return 0;
-  
+
   GLuint program = glCreateProgram();
   for (size_t i = 0; i < num_shaders; i++)
   {
@@ -136,9 +136,9 @@ GLuint link_shader_program(GLuint* shaders, size_t num_shaders)
       continue;
     glAttachShader(program, shaders[i]);
   }
-  
+
   glLinkProgram(program);
-  
+
   int is_linked;
   glGetProgramiv(program, GL_LINK_STATUS, &is_linked);
 
@@ -153,11 +153,11 @@ GLuint link_shader_program(GLuint* shaders, size_t num_shaders)
 
     error_buff[max_length] = 0;
     fprintf(stderr, "%s\n", error_buff);
-    
+
     glDeleteProgram(program);
     return 0;
   }
-  
+
   return program;
 }
 
