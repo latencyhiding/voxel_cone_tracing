@@ -69,9 +69,10 @@ int main()
 
   Camera camera(glm::vec3(0, .75, 3), 0, -90);
   camera.set_perspective(45.0f, (float) WIDTH / (float) HEIGHT, 0.1f, 100.0f);
+  renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
 
   point_light_t light;
-  light.position = glm::vec3(15, 15, 0);
+  light.position = glm::vec3(0, 1, 0.5);
   light.color = glm::vec3(1.0, 1.0, 1.0);
 
   static float init_move_speed = 0.005;
@@ -129,7 +130,8 @@ int main()
       dy = -move_speed;
 
     camera.move(dx, dy, dz);
-    light.position = camera.m_pos;
+    //light.position += glm::vec3(0.2 * dx, 0.2 * dy, 0.2 * -dz);
+    //light.position = camera.m_pos;
 
     renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
 

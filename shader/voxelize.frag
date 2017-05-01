@@ -76,6 +76,7 @@ void main()
     const vec3 dir = normalize(light_pos - gs_out.world_position.xyz);
     const float d = distance(light_pos, gs_out.world_position.xyz);
     const float a = attenuate(1, 0, 1, d);
+
     float cos_surf = max(dot(normalize(gs_out.normal), dir), 0.0f);
 
     // Temperorary measure as for some reason the winding is wrong

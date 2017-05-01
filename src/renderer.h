@@ -49,6 +49,7 @@ typedef struct
   int camera_location;
   int texture_3D_location;
   int cube_size_location;
+  int cube_res_location;
   int model_location;
 } shader_t;
 
@@ -119,6 +120,7 @@ struct Renderer
 private:
   void draw_model(const model_t& model, const shader_t& shader);
   void upload_lights(const shader_t& shader);
+  void upload_camera(const shader_t& shader);
   void voxelize();
   void visualize();
   void bind_material(material_t& material, int location);

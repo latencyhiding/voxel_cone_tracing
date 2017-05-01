@@ -14,6 +14,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
+#include <glm/gtc/matrix_access.hpp> 
 
 #include <gl_utils/gl_helpers.h>
 
@@ -284,6 +285,14 @@ void Renderer::upload_lights(const shader_t& shader)
   glUniform1i(glGetUniformLocation(shader.program, "point_light_count"), m_point_lights.size());
 }
 
+void Renderer::upload_camera(const shader_t& shader)
+{
+  glBindBufferBase(GL_UNIFORM_BUFFER, shader.camera_location, m_camera_ubo);
+
+  glm::vec3 camera_position = glm::column(m_camera.view, 3);
+  glUniform3fv(glGetUniformLocation(shader.program, "camera_position"), 1, glm::value_ptr(camera_position));
+}
+
 void Renderer::voxelize()
 {
   static GLfloat black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -301,17 +310,19 @@ void Renderer::voxelize()
   glUniform1f(shader.cube_size_location, m_cube_size); 
   glBindImageTexture(0, m_voxel_grid_tex, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 
+  upload_camera(shader);
+
   // Upload lights
   upload_lights(shader);
 
   // Set render settings
-  glViewport(0, 0, m_resolution, m_resolution);
+  int viewport_res = m_resolution * 2;
+  glViewport(0, 0, viewport_res, viewport_res);
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
 
-  glBindBufferBase(GL_UNIFORM_BUFFER, shader.camera_location, m_camera_ubo);
 
   for (auto& model : m_draw_queue)
   {
@@ -337,6 +348,10 @@ void Renderer::visualize()
   glBindTexture(GL_TEXTURE_3D, m_voxel_grid_tex);
   glUniform1i(shader.texture_3D_location, 0);
   glUniform1f(shader.cube_size_location, m_cube_size); 
+  glUniform1i(shader.cube_res_location, m_resolution);
+
+  upload_camera(shader);
+  upload_lights(shader);
 
   // Set settings
   glViewport(0, 0, m_viewport_width, m_viewport_height);
@@ -347,11 +362,6 @@ void Renderer::visualize()
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-  glUniform1i(shader.texture_3D_location, 0);
-  glUniform1f(shader.cube_size_location, m_cube_size); 
-
-  glBindBufferBase(GL_UNIFORM_BUFFER, shader.camera_location, m_camera_ubo);
 
   for (auto& model : m_draw_queue)
   {
@@ -594,6 +604,7 @@ shader_id_t Renderer::load_shader(const char* vertex_shader_name,
   new_shader.texture_3D_location = glGetUniformLocation(new_shader.program, "tex3D");
 
   new_shader.cube_size_location = glGetUniformLocation(new_shader.program, "cube_size");
+  new_shader.cube_res_location = glGetUniformLocation(new_shader.program, "cube_res");
   new_shader.model_location = glGetUniformLocation(new_shader.program, "model");
 
   m_shaders.push_back(new_shader);  
