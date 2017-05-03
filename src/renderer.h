@@ -118,7 +118,8 @@ struct Renderer
   void render();
 
 private:
-  void draw_model(const model_t& model, const shader_t& shader);
+  void draw_models(const shader_t& shader);
+  void filter();
   void upload_lights(const shader_t& shader);
   void upload_camera(const shader_t& shader);
   void voxelize();
@@ -145,6 +146,8 @@ private:
 
   std::vector<model_t> m_draw_queue;
   std::vector<point_light_t> m_point_lights;
+
+  GLuint m_mipmap_shader;
 
   shader_id_t m_voxelize_shader;
   shader_id_t m_draw_shader;

@@ -1,8 +1,10 @@
 #pragma once
 
-class Texture3D
-{
-  private:
-    size_t m_levels;
-    GLuint m_tex;
-};
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
+GLuint create_tex_3d(int width, int height, int depth, int levels);
+void destroy_tex_3d(GLuint tex);
+void activate_tex_3d(GLuint program, int sampler_location, GLuint tex, GLuint unit);
+void clear_tex_3d(GLuint tex, GLfloat clear_color[4]);
+void mip_tex_3d(GLuint tex);

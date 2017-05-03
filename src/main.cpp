@@ -65,15 +65,15 @@ int main()
   Renderer renderer(WIDTH, HEIGHT);
   model_id_t model = renderer.load_model("assets/CornellBox-Glossy.obj");
   glm::vec3 dims = renderer.get_model_dimensions(model);
-  renderer.set_grid_size(2);
+  renderer.set_grid_size(3);
 
-  Camera camera(glm::vec3(0, .75, 3), 0, -90);
+  Camera camera(glm::vec3(0, .9, 3), 0, -90);
   camera.set_perspective(45.0f, (float) WIDTH / (float) HEIGHT, 0.1f, 100.0f);
   renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
 
   point_light_t light;
   light.position = glm::vec3(0, 1, 0.5);
-  light.color = glm::vec3(1.0, 1.0, 1.0);
+  light.color = glm::vec3(0.5, 0.5, 0.5);
 
   static float init_move_speed = 0.005;
   static float init_camera_rot_amount = 0.01;

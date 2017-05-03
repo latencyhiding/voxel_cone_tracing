@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.2)
 set(APP_NAME Voxel_Cone_Tracing)
 
 set(SOURCES src/main.cpp
-            src/renderer.cpp)
+            src/renderer.cpp
+            src/texture_3d.cpp)
 
 ## Third party libs
 # glad 

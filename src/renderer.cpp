@@ -18,6 +18,8 @@
 
 #include <gl_utils/gl_helpers.h>
 
+#include "texture_3d.h"
+
 typedef float float3[3];
 typedef float float2[2];
 
@@ -161,7 +163,12 @@ Renderer::Renderer(int width, int height)
                                   "shader/voxelize.frag",
                                   "shader/voxelize.geom");
 
-  set_grid_resolution(128);
+  GLuint mipmap_shader = load_shader_source("shader/mipmap.comp", GL_COMPUTE_SHADER);
+  m_mipmap_shader = link_shader_program(&mipmap_shader, 1);
+  detach_shaders(m_mipmap_shader, &mipmap_shader, 1);
+  destroy_shader(mipmap_shader);
+
+  set_grid_resolution(256);
 }
 
 Renderer::~Renderer()
@@ -178,7 +185,7 @@ Renderer::~Renderer()
     destroy_program(shader.program);
   glDeleteBuffers(1, &m_camera_ubo);
   glDeleteTextures(1, &m_voxel_grid_tex);
-
+  destroy_program(m_mipmap_shader);
 }
 
 void Renderer::set_camera_transform(glm::mat4& lookat, glm::mat4& projection)
@@ -195,27 +202,8 @@ glm::vec3 Renderer::get_model_dimensions(model_id_t model)
 void Renderer::set_grid_resolution(unsigned int res)
 {
   if (m_voxel_grid_tex)
-    glDeleteTextures(1, &m_voxel_grid_tex);
-
-  // Setup 3d texture
-  glGenTextures(1, &m_voxel_grid_tex);
-  glBindTexture(GL_TEXTURE_3D, m_voxel_grid_tex);
-
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-  glTexStorage3D(GL_TEXTURE_3D, 7, GL_RGBA8, res, res, res);
-
-  std::vector<GLfloat> tex(4 * res * res * res, 0.0f);
-  glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, res, res, res, 0, GL_RGBA, GL_FLOAT, &tex[0]);
-
-  glGenerateMipmap(GL_TEXTURE_3D);
-  glBindTexture(GL_TEXTURE_3D, 0);
-
+    destroy_tex_3d(m_voxel_grid_tex);
+  m_voxel_grid_tex = create_tex_3d(res, res, res, 7);
   m_resolution = res;
 }
 
@@ -255,19 +243,22 @@ void Renderer::bind_material(material_t& material, int location)
   glBindBufferBase(GL_UNIFORM_BUFFER, location, material.ubo);
 }
 
-void Renderer::draw_model(const model_t& model, const shader_t& shader)
+void Renderer::draw_models(const shader_t& shader)
 {
-  glUniformMatrix4fv(shader.model_location, 1, false, glm::value_ptr(model.model_matrix));
-
-  glBindVertexArray(model.vao);
-
-  for (size_t i = 0; i < model.draw_obj_range.size; i++)
+  for (auto& model : m_models)
   {
-    draw_obj_t& draw_obj = m_draw_objs[model.draw_obj_range.start + i];
-    // Bind ubos for materials
-    bind_material(m_materials[draw_obj.material_id], shader.material_location);
+    glUniformMatrix4fv(shader.model_location, 1, false, glm::value_ptr(model.model_matrix));
 
-    glDrawElements(draw_obj.draw_type, draw_obj.range.size, GL_UNSIGNED_INT, (const void*) (sizeof(unsigned) * draw_obj.range.start));
+    glBindVertexArray(model.vao);
+
+    for (size_t i = 0; i < model.draw_obj_range.size; i++)
+    {
+      draw_obj_t& draw_obj = m_draw_objs[model.draw_obj_range.start + i];
+      // Bind ubos for materials
+      bind_material(m_materials[draw_obj.material_id], shader.material_location);
+
+      glDrawElements(draw_obj.draw_type, draw_obj.range.size, GL_UNSIGNED_INT, (const void*) (sizeof(unsigned) * draw_obj.range.start));
+    }
   }
 }
 
@@ -293,22 +284,53 @@ void Renderer::upload_camera(const shader_t& shader)
   glUniform3fv(glGetUniformLocation(shader.program, "camera_position"), 1, glm::value_ptr(camera_position));
 }
 
+void Renderer::filter()
+{
+  glUseProgram(m_mipmap_shader);
+
+  // Bind 3d texture
+  activate_tex_3d(m_mipmap_shader, glGetUniformLocation(m_mipmap_shader, "src_tex3D"), m_voxel_grid_tex, 0);
+
+  size_t current_dim = m_resolution;
+  int mip = 0;
+
+  int resolution_location = glGetUniformLocation(m_mipmap_shader, "resolution");
+  int mip_location = glGetUniformLocation(m_mipmap_shader, "mip");
+  int dest_tex3D_location = glGetUniformLocation(m_mipmap_shader, "dest_tex3D");
+
+  while (current_dim >= 1)
+  {
+    glUniform1i(resolution_location, current_dim);
+    glUniform1i(mip_location, mip);
+
+    glActiveTexture(GL_TEXTURE0 + 1);
+    glBindImageTexture(1, m_voxel_grid_tex, mip + 1, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+    glUniform1i(dest_tex3D_location, 1);
+
+    unsigned work_groups = static_cast<unsigned>(glm::ceil(current_dim / 2.0f));
+    glDispatchCompute(work_groups, work_groups, work_groups);
+
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    mip++;
+    current_dim /= 2;
+  }
+}
+
 void Renderer::voxelize()
 {
   static GLfloat black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
   // Clear texture
-  glClearTexImage(m_voxel_grid_tex, 0, GL_RGBA, GL_FLOAT, black);
+  clear_tex_3d(m_voxel_grid_tex, black);
 
   // Render scene
   shader_t& shader = m_shaders[m_voxelize_shader];
   glUseProgram(shader.program);
+  glUniform1f(shader.cube_size_location, m_cube_size); 
 
   // Bind 3d texture
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_3D, m_voxel_grid_tex);
-  glUniform1i(shader.texture_3D_location, 0);
-  glUniform1f(shader.cube_size_location, m_cube_size); 
-  glBindImageTexture(0, m_voxel_grid_tex, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+  activate_tex_3d(shader.program, shader.texture_3D_location, m_voxel_grid_tex, 0);
+  glBindImageTexture(0, m_voxel_grid_tex, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
 
   upload_camera(shader);
 
@@ -321,16 +343,13 @@ void Renderer::voxelize()
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
-  glDisable(GL_BLEND);
+  //glEnable(GL_BLEND);
+  //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-
-  for (auto& model : m_draw_queue)
-  {
-    draw_model(model, shader);
-  }
+  draw_models(shader);
 
   // Mipmap
-  glGenerateMipmap(GL_TEXTURE_3D);
+  filter();
 
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
@@ -342,13 +361,11 @@ void Renderer::visualize()
 
   shader_t& shader = m_shaders[m_draw_shader];
   glUseProgram(shader.program);
-
-  // Bind 3d texture
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_3D, m_voxel_grid_tex);
-  glUniform1i(shader.texture_3D_location, 0);
   glUniform1f(shader.cube_size_location, m_cube_size); 
   glUniform1i(shader.cube_res_location, m_resolution);
+
+  // Bind 3d texture
+  activate_tex_3d(shader.program, shader.texture_3D_location, m_voxel_grid_tex, 0);
 
   upload_camera(shader);
   upload_lights(shader);
@@ -359,14 +376,9 @@ void Renderer::visualize()
   glEnable(GL_DEPTH_TEST);
   //glEnable(GL_CULL_FACE);
   //glCullFace(GL_BACK);
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-  for (auto& model : m_draw_queue)
-  {
-    draw_model(model, shader);
-  }
+  draw_models(shader);
 }
 
 void Renderer::render()
@@ -412,7 +424,7 @@ model_id_t Renderer::load_model(const char* filename)
   std::vector<vert_data_t> vertices;
   std::vector<unsigned> indices;
   std::unordered_map<vert_data_t, unsigned> unique_verts = {};
-  
+
   GLuint vao;
   GLuint vbo;
   GLuint ebo;
