@@ -63,8 +63,26 @@ int main()
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
   Renderer renderer(WIDTH, HEIGHT);
+
+  // Create scene
   model_id_t model = renderer.load_model("assets/CornellBox-Glossy.obj");
-  glm::vec3 dims = renderer.get_model_dimensions(model);
+
+  model_id_t dragon = renderer.load_model("assets/dragon.obj");
+  material_data_t dragon_material;
+  dragon_material.ambient = glm::vec4(0.1, 0.3, 0.3, 1.0);
+  dragon_material.diffuse = glm::vec4(0.1, 0.3, 0.3, 1.0);
+  dragon_material.specular = glm::vec4(1.0, 1.0, 1.0, 1.0);
+  dragon_material.transmittance = glm::vec4(1.0, 1.0, 1.0, 1.0);
+  dragon_material.emission = glm::vec3(0.0, 0.0, 0.0); 
+  dragon_material.shininess = 0;
+  dragon_material.ior = 1.33;
+  dragon_material.dissolve = 1;
+  dragon_material.illum = 5;
+
+  material_id_t dragon_material_id = renderer.add_material(dragon_material);
+  renderer.set_model_material(dragon_material_id, dragon);
+  glm::vec3 dragon_position = glm::vec3(0.75, 0.75, 0.75);
+
   renderer.set_grid_size(3);
 
   Camera camera(glm::vec3(0, .9, 3), 0, -90);
@@ -72,8 +90,8 @@ int main()
   renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
 
   point_light_t light;
-  light.position = glm::vec3(0, 1, 0.5);
-  light.color = glm::vec3(0.5, 0.5, 0.5);
+  light.position = glm::vec3(0, 1.45, 0);
+  light.color = glm::vec3(1.0f); //0.75, 0.75, 0.75);
 
   static float init_move_speed = 0.005;
   static float init_camera_rot_amount = 0.01;
@@ -131,13 +149,19 @@ int main()
 
     camera.move(dx, dy, dz);
     //light.position += glm::vec3(0.2 * dx, 0.2 * dy, 0.2 * -dz);
-    //light.position = camera.m_pos;
+    //renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
 
-    renderer.set_camera_transform(camera.get_lookat(), camera.get_projection());
-
+    dragon_position += glm::vec3(0.2 * dx, 0.2 * dy, 0.2 * -dz);
+    glm::mat4 dragon_matrix;
+    dragon_matrix = glm::translate(dragon_matrix, dragon_position);
+    glm::mat4 dragon_rotate;
+    dragon_matrix *= glm::rotate(dragon_rotate, (float) mouse_x / WIDTH, glm::vec3(0, 1, 0));
+    renderer.set_model_transform(dragon, dragon_matrix);
+    
     glm::mat4 model_matrix;
     renderer.set_model_transform(model, model_matrix);
     renderer.queue_model(model);
+    renderer.queue_model(dragon);
     renderer.queue_point_light(light);
 
     renderer.render();

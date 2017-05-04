@@ -40,7 +40,7 @@ struct point_light
 uniform point_light point_lights[MAX_POINT_LIGHTS];
 uniform int point_light_count;
 
-uniform layout (r32ui) uimage3D tex3D;
+uniform layout (binding = 2, r32ui) uimage3D tex3D[6];
 
 vec3 scale_and_bias(const vec3 p)
 {
@@ -135,7 +135,7 @@ void main()
   }
 
   // Multiply intensity with diffuse/specular
-  vec3 emissivity_term = emission * diffuse;
+  vec3 emissivity_term = emission;
   color = (diffuse + specular) * color + emissivity_term;
 
   vec3 alpha = vec3(1.0, 1.0, 1.0);
@@ -145,8 +145,9 @@ void main()
   vec4 final_color = clamp(vec4(alpha * color, 1), 0, 1);
 
   // Output to 3D texture
-  ivec3 dim = imageSize(tex3D);
+  ivec3 dim = imageSize(tex3D[0]);
   ivec3 voxel_pos = ivec3(dim * scale_and_bias(pos));
 
-  imageAtomicRGBA8Avg(tex3D, voxel_pos, final_color);
+  for (int i = 0; i < 6; i++)
+    imageAtomicRGBA8Avg(tex3D[i], voxel_pos, vec4(final_color.rgb, 1));
 }

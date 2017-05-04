@@ -29,12 +29,11 @@ void destroy_tex_3d(GLuint tex)
   glDeleteTextures(1, &tex);
 }
 
-void activate_tex_3d(GLuint program, int sampler_location, GLuint tex, GLuint unit)
+void activate_tex_3d(GLuint program, GLuint tex, GLuint unit)
 {
   // Bind 3d texture
   glActiveTexture(GL_TEXTURE0 + unit);
   glBindTexture(GL_TEXTURE_3D, tex);
-  glUniform1i(sampler_location, unit);
 }
 
 void clear_tex_3d(GLuint tex, GLfloat clear_color[4])

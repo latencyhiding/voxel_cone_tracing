@@ -20,9 +20,6 @@
 
 #include "texture_3d.h"
 
-typedef float float3[3];
-typedef float float2[2];
-
 #pragma pack(push, 1)
 struct vert_data_t
 {
@@ -49,35 +46,6 @@ namespace std
     }
   };
 }
-
-#pragma pack(push, 1)
-typedef struct 
-{
-  float ambient[4];
-  float diffuse[4];
-  float specular[4];
-  float transmittance[4];
-  float emission[3];
-
-  float shininess;
-  float ior;       // index of refraction
-  float dissolve;  // 1 == opaque; 0 == fully transparent
-
-  int illum;
-
-  // PBR extension
-  float roughness;            // [0, 1] default 0
-  float metallic;             // [0, 1] default 0
-  float sheen;                // [0, 1] default 0
-  float clearcoat_thickness;  // [0, 1] default 0
-  float clearcoat_roughness;  // [0, 1] default 0
-  float anisotropy;           // aniso. [0, 1] default 0
-  float anisotropy_rotation;  // anisor. [0, 1] default 0
-
-  float pad[2];
-} material_data_t;
-#pragma pack(pop)
-
 void create_material(const tinyobj::material_t& material, material_t* result)
 {
   material_data_t mat_data;
@@ -116,16 +84,15 @@ void create_material(const tinyobj::material_t& material, material_t* result)
 
 static void fill_default_mat_data(material_data_t& mat)
 {
-  mat = {0};
-  mat.ambient[0] = 255;
+  mat.ambient[0] = 1;
   mat.ambient[1] = 0;
-  mat.ambient[2] = 255;
-  mat.diffuse[0] = 255;
+  mat.ambient[2] = 1;
+  mat.diffuse[0] = 1;
   mat.diffuse[1] = 0;
-  mat.diffuse[2] = 255;
+  mat.diffuse[2] = 1;
 
-  mat.shininess = 0;
-  mat.ior = 0.4;
+  mat.shininess = 1;
+  mat.ior = 1;
   mat.dissolve = 1;
   mat.illum = 0;
 }
@@ -133,7 +100,6 @@ static void fill_default_mat_data(material_data_t& mat)
 Renderer::Renderer(int width, int height)
   : m_viewport_width(width)
   , m_viewport_height(height)
-  , m_voxel_grid_tex(0)
 {
   // Setup camera ubo
   glGenBuffers(1, &m_camera_ubo);
@@ -168,7 +134,10 @@ Renderer::Renderer(int width, int height)
   detach_shaders(m_mipmap_shader, &mipmap_shader, 1);
   destroy_shader(mipmap_shader);
 
-  set_grid_resolution(256);
+  for (int i = 0; i < 6; i++)
+    m_voxel_maps[i] = 0;
+
+  set_grid_resolution(128);
 }
 
 Renderer::~Renderer()
@@ -184,8 +153,9 @@ Renderer::~Renderer()
   for (const auto& shader : m_shaders)
     destroy_program(shader.program);
   glDeleteBuffers(1, &m_camera_ubo);
-  glDeleteTextures(1, &m_voxel_grid_tex);
   destroy_program(m_mipmap_shader);
+
+  glDeleteTextures(6, m_voxel_maps);
 }
 
 void Renderer::set_camera_transform(glm::mat4& lookat, glm::mat4& projection)
@@ -201,10 +171,14 @@ glm::vec3 Renderer::get_model_dimensions(model_id_t model)
 
 void Renderer::set_grid_resolution(unsigned int res)
 {
-  if (m_voxel_grid_tex)
-    destroy_tex_3d(m_voxel_grid_tex);
-  m_voxel_grid_tex = create_tex_3d(res, res, res, 7);
   m_resolution = res;
+
+  for (int i = 0; i < 6; i++)
+  {
+    if (m_voxel_maps[i])
+      destroy_tex_3d(m_voxel_maps[i]);
+    m_voxel_maps[i] = create_tex_3d(res, res, res, 7);
+  }
 }
 
 void Renderer::set_grid_size(float size)
@@ -245,7 +219,7 @@ void Renderer::bind_material(material_t& material, int location)
 
 void Renderer::draw_models(const shader_t& shader)
 {
-  for (auto& model : m_models)
+  for (auto& model : m_draw_queue)
   {
     glUniformMatrix4fv(shader.model_location, 1, false, glm::value_ptr(model.model_matrix));
 
@@ -289,25 +263,25 @@ void Renderer::filter()
   glUseProgram(m_mipmap_shader);
 
   // Bind 3d texture
-  activate_tex_3d(m_mipmap_shader, glGetUniformLocation(m_mipmap_shader, "src_tex3D"), m_voxel_grid_tex, 0);
+  for (int i = 0; i < 6; i++)
+    activate_tex_3d(m_mipmap_shader, m_voxel_maps[i], i);
+  glActiveTexture(GL_TEXTURE0);
 
   size_t current_dim = m_resolution;
   int mip = 0;
 
   int resolution_location = glGetUniformLocation(m_mipmap_shader, "resolution");
   int mip_location = glGetUniformLocation(m_mipmap_shader, "mip");
-  int dest_tex3D_location = glGetUniformLocation(m_mipmap_shader, "dest_tex3D");
 
   while (current_dim >= 1)
   {
     glUniform1i(resolution_location, current_dim);
     glUniform1i(mip_location, mip);
 
-    glActiveTexture(GL_TEXTURE0 + 1);
-    glBindImageTexture(1, m_voxel_grid_tex, mip + 1, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
-    glUniform1i(dest_tex3D_location, 1);
+    for (int i = 0; i < 6; i++)
+      glBindImageTexture(i, m_voxel_maps[i], mip + 1, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 
-    unsigned work_groups = static_cast<unsigned>(glm::ceil(current_dim / 2.0f));
+    unsigned work_groups = static_cast<unsigned>(glm::ceil(current_dim / 8.0f));
     glDispatchCompute(work_groups, work_groups, work_groups);
 
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -321,7 +295,8 @@ void Renderer::voxelize()
 {
   static GLfloat black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
   // Clear texture
-  clear_tex_3d(m_voxel_grid_tex, black);
+  for (int i = 0; i < 6; i++)
+    clear_tex_3d(m_voxel_maps[i], black);
 
   // Render scene
   shader_t& shader = m_shaders[m_voxelize_shader];
@@ -329,8 +304,9 @@ void Renderer::voxelize()
   glUniform1f(shader.cube_size_location, m_cube_size); 
 
   // Bind 3d texture
-  activate_tex_3d(shader.program, shader.texture_3D_location, m_voxel_grid_tex, 0);
-  glBindImageTexture(0, m_voxel_grid_tex, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+  int offset = 2;
+  for (int i = 0; i < 6; i++)
+    glBindImageTexture(i + offset, m_voxel_maps[i], 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
 
   upload_camera(shader);
 
@@ -365,7 +341,9 @@ void Renderer::visualize()
   glUniform1i(shader.cube_res_location, m_resolution);
 
   // Bind 3d texture
-  activate_tex_3d(shader.program, shader.texture_3D_location, m_voxel_grid_tex, 0);
+  int offset = 2;
+  for (int i = 0; i < 6; i++)
+    activate_tex_3d(shader.program, m_voxel_maps[i], i + offset);
 
   upload_camera(shader);
   upload_lights(shader);
@@ -632,3 +610,39 @@ shader_id_t Renderer::load_shader(const char* vertex_shader_name,
   return m_shaders.size() - 1;
 }
 
+void Renderer::upload_material_data(material_data_t& material_data, material_id_t material_id)
+{
+  material_t& material = m_materials[material_id];
+ 
+  glGenBuffers(1, &material.ubo);
+  glBindBuffer(GL_UNIFORM_BUFFER, material.ubo);
+  glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(material_data_t), &material_data);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+material_id_t Renderer::add_material(material_data_t& material_data)
+{
+  material_t result;
+  result.num_textures = 0;
+
+  glGenBuffers(1, &result.ubo);
+  glBindBuffer(GL_UNIFORM_BUFFER, result.ubo);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(material_data_t), &material_data, GL_STATIC_DRAW);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+  m_materials.push_back(result);
+  return m_materials.size() - 1;
+}
+
+void Renderer::set_model_material(material_id_t material_id, model_id_t model_id)
+{
+  model_t& model = m_models[model_id];
+  material_t& material = m_materials[material_id];
+
+  for (int i = 0; i < model.draw_obj_range.size; i++)
+  {
+    draw_obj_t& draw_obj = m_draw_objs[i + model.draw_obj_range.start];
+    draw_obj.material_id = material_id;
+  }
+}
+ 

@@ -90,6 +90,34 @@ typedef struct
   glm::vec3 color;
 } point_light_t;
 
+#pragma pack(push, 1)
+typedef struct 
+{
+  glm::vec4 ambient;
+  glm::vec4 diffuse;
+  glm::vec4 specular;
+  glm::vec4 transmittance;
+  glm::vec3 emission;
+
+  float shininess;
+  float ior;       // index of refraction
+  float dissolve;  // 1 == opaque; 0 == fully transparent
+
+  int illum;
+
+  // PBR extension
+  float roughness;            // [0, 1] default 0
+  float metallic;             // [0, 1] default 0
+  float sheen;                // [0, 1] default 0
+  float clearcoat_thickness;  // [0, 1] default 0
+  float clearcoat_roughness;  // [0, 1] default 0
+  float anisotropy;           // aniso. [0, 1] default 0
+  float anisotropy_rotation;  // anisor. [0, 1] default 0
+
+  float pad[2];
+} material_data_t;
+#pragma pack(pop)
+
 struct Renderer
 {
   Renderer(int width, int height);
@@ -102,6 +130,11 @@ struct Renderer
   shader_id_t load_shader(const char* vertex_shader_name,
                           const char* fragment_shader_name,
                           const char* geometry_shader_name = NULL);
+
+  material_id_t add_material(material_data_t& material_data);
+  void upload_material_data(material_data_t& material_data, material_id_t material_id);
+  void set_model_material(material_id_t material_id, model_id_t model_id);
+
   glm::vec3 get_model_dimensions(model_id_t model);
   void set_grid_resolution(unsigned int res);
   void set_grid_size(float size);
@@ -139,6 +172,8 @@ private:
   float m_cube_size;
   GLuint m_voxel_grid_tex;
   size_t m_resolution;
+
+  GLuint m_voxel_maps[6];
 
   int m_viewport_width, m_viewport_height;
 

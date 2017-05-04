@@ -1,8 +1,8 @@
 #version 450 core
-layout (local_size_x = 2, local_size_y = 2, local_size_z = 2) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-uniform sampler3D src_tex3D;
-uniform layout (RGBA8) image3D dest_tex3D;
+uniform layout (binding = 0) sampler3D src_tex3D[6];
+uniform layout (binding = 0, RGBA8) image3D dest_tex3D[6];
 
 uniform int resolution;
 uniform int mip;
@@ -19,17 +19,27 @@ const ivec3 voxel_offsets[] = ivec3[8]
   ivec3(0, 0, 0)
 );
 
-vec4 average_block(ivec3 block_pos)
-{
-  vec4 res = vec4(0.0);
-  
-  for (int i = 0; i < 8; i++)
-  {
-    vec4 color = texelFetch(src_tex3D, block_pos + voxel_offsets[i], mip);
-    res += (1 - res.a) * color;
-  }
+/**
+dir:
+  0 = -x
+  1 = x
+  2 = -y 
+  3 = y 
+  4 = -z
+  5 = z 
+  */
 
-  return res;
+vec4[8] fetch_texels(int dir, ivec3 block_pos)
+{
+  vec4 values[8];
+  for (int i = 0; i < 8; i++)
+    values[i] = texelFetch(src_tex3D[i], block_pos + voxel_offsets[i], mip);
+  return values;
+}
+
+vec4 alpha_blend(vec4 v0, vec4 v1)
+{
+  return v0 + ((1 - v0.a) * v1);
 }
 
 void main()
@@ -42,5 +52,49 @@ void main()
   ivec3 write_pos = ivec3(gl_GlobalInvocationID);
   ivec3 block_pos = write_pos * 2;
 
-  imageStore(dest_tex3D, write_pos, average_block(block_pos));
+  vec4 values[8];
+  
+  // Anisotropically filter voxels
+  // -x dir
+  values = fetch_texels(0, block_pos);
+  imageStore(dest_tex3D[0], write_pos, (alpha_blend(values[0], values[4]) + 
+                                        alpha_blend(values[1], values[5]) +
+                                        alpha_blend(values[2], values[6]) +
+                                        alpha_blend(values[3], values[7])) / 4);
+
+  // x dir
+  values = fetch_texels(1, block_pos);
+  imageStore(dest_tex3D[1], write_pos, (alpha_blend(values[4], values[0]) + 
+                                        alpha_blend(values[5], values[1]) +
+                                        alpha_blend(values[6], values[2]) +
+                                        alpha_blend(values[7], values[3])) / 4);
+
+  // -y dir
+  values = fetch_texels(2, block_pos);
+  imageStore(dest_tex3D[2], write_pos, (alpha_blend(values[0], values[2]) + 
+                                        alpha_blend(values[1], values[3]) +
+                                        alpha_blend(values[5], values[7]) +
+                                        alpha_blend(values[4], values[6])) / 4);
+
+  // y dir
+  values = fetch_texels(3, block_pos);
+  imageStore(dest_tex3D[3], write_pos, (alpha_blend(values[2], values[0]) + 
+                                        alpha_blend(values[3], values[1]) +
+                                        alpha_blend(values[7], values[5]) +
+                                        alpha_blend(values[6], values[4])) / 4);
+
+  // -z dir
+  values = fetch_texels(4, block_pos);
+  imageStore(dest_tex3D[4], write_pos, (alpha_blend(values[0], values[1]) + 
+                                        alpha_blend(values[2], values[3]) +
+                                        alpha_blend(values[4], values[5]) +
+                                        alpha_blend(values[6], values[7])) / 4);
+
+  // z dir
+  values = fetch_texels(5, block_pos);
+  imageStore(dest_tex3D[5], write_pos, (alpha_blend(values[1], values[0]) + 
+                                        alpha_blend(values[3], values[2]) +
+                                        alpha_blend(values[5], values[4]) +
+                                        alpha_blend(values[7], values[6])) / 4);
+
 }
