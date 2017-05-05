@@ -221,6 +221,7 @@ int main()
       static int current_control = 3;
       
       ImGui::Text("Transform control: %s. Press ESC to stop control", control_options[current_control]);
+      ImGui::Text("Shift for down, Space for up");
 
       if (ImGui::Button("Dynamic object (WASD move, QE rotate)"))
       {
