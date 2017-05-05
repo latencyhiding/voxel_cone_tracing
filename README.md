@@ -5,8 +5,10 @@ An implementation of voxel cone tracing based on "Interactive Indirect Illuminat
 Requires OpenGL 4.5, CMake 3.2
 
 To build:
-> mkdir build
-> cd build && cmake ..
-> make
-> cd ..
-> build/Voxel_Cone_Tracing
+``` 
+mkdir build
+cd build && cmake ..
+make
+cd ..
+build/Voxel_Cone_Tracing
+```
