@@ -113,7 +113,7 @@ int main()
   int current_light_index = 0;
 
   point_light_t ceiling_light;
-  ceiling_light.position = glm::vec3(0, 1.45, 0);
+  ceiling_light.position = glm::vec3(0, 1.4, 0);
   ceiling_light.color = glm::vec3(1.0f);
   ceiling_light.intensity = 1.0;
 

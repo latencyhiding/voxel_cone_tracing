@@ -190,7 +190,7 @@ vec3 direct_light(vec3 pos, vec3 view_dir)
     // Shadow
     float shadow_level = 1.0;
     if (enable_shadow)
-      shadow_level = max(0, 1 - trace_shadow(pos, light_dir, 0.01, d));
+      shadow_level = max(0, 1 - trace_shadow(pos, light_dir, 0.1, d));
 
     // Blinn-Phong
     float lambertian = max(dot(light_dir, vs_out.normal), 0);
@@ -270,6 +270,6 @@ void main()
     final_specular = specular * trace_specular(pos, vs_out.normal, view_dir);
 
   final_color = vec4(final_specular + final_diffuse + final_direct, 1);
-  if (illum == 4 || illum == 6 || illum == 7 || illum == 9)
+  if ((illum == 4 || illum == 6 || illum == 7 || illum == 9) && enable_specular)
     final_color = vec4(mix(trace_refraction(pos, vs_out.normal, view_dir), final_color.rgb, dissolve), 1);
 }
