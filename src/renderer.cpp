@@ -100,6 +100,12 @@ static void fill_default_mat_data(material_data_t& mat)
 Renderer::Renderer(int width, int height)
   : m_viewport_width(width)
   , m_viewport_height(height)
+  , m_enable_shadows(true)
+  , m_enable_direct(true)
+  , m_enable_indirect_diffuse(true)
+  , m_enable_indirect_specular(true)
+  , m_view_voxel_dir(0)
+  , m_view_voxel_lod(0)
 {
   // Setup camera ubo
   glGenBuffers(1, &m_camera_ubo);
@@ -186,6 +192,20 @@ void Renderer::set_grid_size(float size)
   m_cube_size = size;
 }
 
+void Renderer::set_rendering_phases(bool direct, bool diffuse, bool specular, bool shadow)
+{
+  m_enable_shadows = shadow;
+  m_enable_direct = direct;
+  m_enable_indirect_diffuse = diffuse;
+  m_enable_indirect_specular = specular;
+}
+
+void Renderer::set_voxel_view_dir(int dir, float lod)
+{
+  m_view_voxel_dir = dir;
+  m_view_voxel_lod = lod;
+}
+
 void Renderer::queue_model(model_id_t model_id)
 {
   if (model_id >= m_models.size())
@@ -242,9 +262,11 @@ void Renderer::upload_lights(const shader_t& shader)
   {
     int position_location = glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].position").c_str());
     int color_location = glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].color").c_str());
+    int intensity_location = glGetUniformLocation(shader.program, ("point_lights[" + std::to_string(i) + "].intensity").c_str());
 
     glUniform3fv(position_location, 1, glm::value_ptr(m_point_lights[i].position));
     glUniform3fv(color_location, 1, glm::value_ptr(m_point_lights[i].color));
+    glUniform1f(intensity_location, m_point_lights[i].intensity);
   }
 
   glUniform1i(glGetUniformLocation(shader.program, "point_light_count"), m_point_lights.size());
@@ -332,6 +354,9 @@ void Renderer::voxelize()
 
 void Renderer::visualize()
 {
+  // Set settings
+  glViewport(0, 0, m_viewport_width, m_viewport_height);
+
   glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -340,6 +365,14 @@ void Renderer::visualize()
   glUniform1f(shader.cube_size_location, m_cube_size); 
   glUniform1i(shader.cube_res_location, m_resolution);
 
+  glUniform1i(glGetUniformLocation(shader.program, "enable_diffuse"), m_enable_indirect_diffuse);
+  glUniform1i(glGetUniformLocation(shader.program, "enable_specular"), m_enable_indirect_specular);
+  glUniform1i(glGetUniformLocation(shader.program, "enable_shadow"), m_enable_shadows);
+  glUniform1i(glGetUniformLocation(shader.program, "enable_direct"), m_enable_direct);
+
+  glUniform1i(glGetUniformLocation(shader.program, "view_voxel_dir"), m_view_voxel_dir);
+  glUniform1f(glGetUniformLocation(shader.program, "view_voxel_lod"), m_view_voxel_lod);
+
   // Bind 3d texture
   int offset = 2;
   for (int i = 0; i < 6; i++)
@@ -347,9 +380,6 @@ void Renderer::visualize()
 
   upload_camera(shader);
   upload_lights(shader);
-
-  // Set settings
-  glViewport(0, 0, m_viewport_width, m_viewport_height);
 
   glEnable(GL_DEPTH_TEST);
   //glEnable(GL_CULL_FACE);
@@ -616,7 +646,7 @@ void Renderer::upload_material_data(material_data_t& material_data, material_id_
  
   glGenBuffers(1, &material.ubo);
   glBindBuffer(GL_UNIFORM_BUFFER, material.ubo);
-  glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(material_data_t), &material_data);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(material_data_t), &material_data, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -627,7 +657,7 @@ material_id_t Renderer::add_material(material_data_t& material_data)
 
   glGenBuffers(1, &result.ubo);
   glBindBuffer(GL_UNIFORM_BUFFER, result.ubo);
-  glBufferData(GL_UNIFORM_BUFFER, sizeof(material_data_t), &material_data, GL_STATIC_DRAW);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(material_data_t), &material_data, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
   m_materials.push_back(result);

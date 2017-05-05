@@ -33,7 +33,7 @@ vec4[8] fetch_texels(int dir, ivec3 block_pos)
 {
   vec4 values[8];
   for (int i = 0; i < 8; i++)
-    values[i] = texelFetch(src_tex3D[i], block_pos + voxel_offsets[i], mip);
+    values[i] = texelFetch(src_tex3D[dir], block_pos + voxel_offsets[i], mip);
   return values;
 }
 
@@ -53,7 +53,7 @@ void main()
   ivec3 block_pos = write_pos * 2;
 
   vec4 values[8];
-  
+
   // Anisotropically filter voxels
   // -x dir
   values = fetch_texels(0, block_pos);

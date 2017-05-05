@@ -10,3 +10,6 @@
 [submodule "thirdparty/imgui"]
 	path = thirdparty/imgui
 	url = git@github.com:ocornut/imgui.git
+[submodule "thirdparty/gl3w"]
+	path = thirdparty/gl3w
+	url = git@github.com:skaslev/gl3w.git

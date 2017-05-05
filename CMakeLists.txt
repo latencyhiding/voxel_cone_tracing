@@ -32,6 +32,25 @@ find_package(OpenGL REQUIRED)
 # GLM
 include_directories(thirdparty/glm)
 
+# Imgui
+add_library(imgui STATIC
+                  thirdparty/imgui/imgui.cpp
+                  thirdparty/imgui
+                  thirdparty/imgui/imgui.h
+                  thirdparty/imgui/imgui_draw.cpp
+                  thirdparty/imgui/imgui_demo.cpp
+                  thirdparty/imgui/imgui_internal.h
+                  thirdparty/imgui/imconfig.h
+                  thirdparty/imgui/stb_rect_pack.h
+                  thirdparty/imgui/stb_textedit.h
+                  thirdparty/imgui/stb_truetype.h
+                  thirdparty/imgui/examples/opengl3_example/imgui_impl_glfw_gl3.cpp
+                  thirdparty/imgui/examples/opengl3_example/imgui_impl_glfw_gl3.h
+                  thirdparty/gl3w/src/gl3w.c)
+include_directories(thirdparty/imgui)
+include_directories(thirdparty/imgui/examples/opengl3_example)
+include_directories(thirdparty/gl3w/include)
+
 # header only stuff
 add_library(header_only_impls STATIC 
                               thirdparty/header_only_impls.cpp)
@@ -46,4 +65,4 @@ include_directories(lib/gl_utils/include)
 
 add_executable(${APP_NAME} ${SOURCES})
 target_compile_features(${APP_NAME} PRIVATE cxx_range_for)
-target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils header_only_impls) 
+target_link_libraries(${APP_NAME} ${OPENGL_LIBRARIES} glfw glad gl_utils header_only_impls imgui)

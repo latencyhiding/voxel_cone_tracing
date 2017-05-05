@@ -88,6 +88,7 @@ typedef struct
 {
   glm::vec3 position;
   glm::vec3 color;
+  float intensity;
 } point_light_t;
 
 #pragma pack(push, 1)
@@ -146,6 +147,9 @@ struct Renderer
 
   // Render
 
+  void set_rendering_phases(bool direct, bool diffuse, bool specular, bool shadow);
+  void set_voxel_view_dir(int dir, float lod);
+
   void queue_model(model_id_t model_id);
   void queue_point_light(point_light_t& point_light);
   void render();
@@ -177,13 +181,16 @@ private:
 
   int m_viewport_width, m_viewport_height;
 
+  bool m_enable_shadows, m_enable_direct, m_enable_indirect_diffuse, m_enable_indirect_specular;
+  int m_view_voxel_dir;
+  float m_view_voxel_lod;
+
   // Per frame
 
   std::vector<model_t> m_draw_queue;
   std::vector<point_light_t> m_point_lights;
 
   GLuint m_mipmap_shader;
-
   shader_id_t m_voxelize_shader;
   shader_id_t m_draw_shader;
 };

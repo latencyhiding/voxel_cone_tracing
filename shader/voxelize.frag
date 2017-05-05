@@ -34,6 +34,7 @@ struct point_light
 {
   vec3 position;
   vec3 color;
+  float intensity;
 };
 
 #define MAX_POINT_LIGHTS 10
@@ -88,7 +89,7 @@ uint decUnsignedNibble(uint m) {
     | (m & 0x01000000) >> 21U;
 }
 
-void imageAtomicRGBA8Avg(uimage3D img, ivec3 coords, vec4 val)
+void imageAtomicRGBA8Avg(layout (r32ui) uimage3D img, ivec3 coords, vec4 val)
 {
   // LSBs are used for the sample counter of the moving average.
 
@@ -131,23 +132,27 @@ void main()
 
     float cos_surf = max(dot(normalize(gs_out.normal), dir), 0.0f);
 
-    color += cos_surf * a * point_lights[i].color;
+    color += cos_surf * a * point_lights[i].color * point_lights[i].intensity;
   }
 
   // Multiply intensity with diffuse/specular
   vec3 emissivity_term = emission;
-  color = (diffuse + specular) * color + emissivity_term;
+  color = (diffuse * color) + emissivity_term;
 
-  vec3 alpha = vec3(1.0, 1.0, 1.0);
+  vec3 final_trans = vec3(1.0, 1.0, 1.0);
+  float alpha = 1.0;
   if (illum == 4 || illum == 6 || illum == 7 || illum == 9)
-    alpha = (1 - dissolve) * transmittance;
+  {
+    final_trans = transmittance;
+    alpha = dissolve;
+  }
 
-  vec4 final_color = clamp(vec4(alpha * color, 1), 0, 1);
+  vec4 final_color = clamp(vec4(final_trans * color, alpha), 0, 1);
 
   // Output to 3D texture
   ivec3 dim = imageSize(tex3D[0]);
   ivec3 voxel_pos = ivec3(dim * scale_and_bias(pos));
 
   for (int i = 0; i < 6; i++)
-    imageAtomicRGBA8Avg(tex3D[i], voxel_pos, vec4(final_color.rgb, 1));
+    imageAtomicRGBA8Avg(tex3D[i], voxel_pos, final_color);
 }

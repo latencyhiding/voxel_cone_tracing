@@ -46,6 +46,7 @@ struct point_light
 {
   vec3 position;
   vec3 color;
+  float intensity;
 };
 
 #define MAX_POINT_LIGHTS 10
@@ -82,7 +83,6 @@ vec4 sample_voxel(vec3 pos, vec3 dir, uvec3 indices, float lod)
   return dir.x * textureLod(tex3D[indices.x], pos, lod) +
          dir.y * textureLod(tex3D[indices.y], pos, lod) +
          dir.z * textureLod(tex3D[indices.z], pos, lod);
-  /*return textureLod(tex3D[0], pos, lod);*/
 }
 
 vec4 trace_cone(vec3 origin, vec3 dir, float aperture, float max_dist)
@@ -167,6 +167,11 @@ vec3 trace_diffuse(vec3 origin, vec3 normal)
   return result_diffuse.xyz / 9.0f;
 }
 
+uniform bool enable_diffuse;
+uniform bool enable_specular;
+uniform bool enable_shadow;
+uniform bool enable_direct;
+
 vec3 direct_light(vec3 pos, vec3 view_dir)
 {
   vec3 result = vec3(0.0f);
@@ -180,43 +185,63 @@ vec3 direct_light(vec3 pos, vec3 view_dir)
     float d = length(light_dir);
     light_dir = normalize(light_dir);
     float cos_surf = max(dot(vs_out.normal, light_dir), 0.0f);
-    vec3 light_color = attenuate(1, 0, 1, d) * cos_surf * light.color;
+    vec3 light_color = attenuate(1, 0, 1, d) * cos_surf * light.color * light.intensity;
 
     // Shadow
-    float shadow_level = max(0, 1 - trace_shadow(pos, light_dir, 0.05, d));
+    float shadow_level = 1.0;
+    if (enable_shadow)
+      shadow_level = max(0, 1 - trace_shadow(pos, light_dir, 0.01, d));
 
     // Blinn-Phong
     float lambertian = max(dot(light_dir, vs_out.normal), 0);
-    lambertian = min(shadow_level, lambertian);
 
     // Refraction
     float refract_angle = 0.0;
-    vec3 refraction = refract(view_dir, vs_out.normal, 1.0 / ior);
-    refract_angle = max((1 - dissolve) * dot(refraction, light_dir), 0);
+    if (dissolve <= 0.1)
+    {
+      vec3 refraction = refract(view_dir, vs_out.normal, 1.0 / ior);
+      refract_angle = max((1 - dissolve) * dot(refraction, light_dir), 0);
+    }
 
     float specular_coeff = 0;
 
     vec3 half_vec = normalize(light_dir + view_dir);
     float specular_angle = max(dot(half_vec, vs_out.normal), 0);
-    specular_angle = min(shadow_level, max(specular_angle, refract_angle));
+    specular_angle = max(specular_angle, refract_angle);
 
     specular_coeff = pow(specular_angle, shininess);
 
-    result += (lambertian * dissolve * diffuse + specular_coeff * specular) * light_color + clamp(emission, 0, 1);
+    result += (shadow_level + 0.04) * (lambertian * diffuse + specular_coeff * specular) * light_color;
   }
 
-  return result;
+  return result + clamp(emission, 0, 1);
 }
 
 float spec_to_roughness = sqrt(2.0f / (shininess + 2.0f));
 
-#define MIN_SPECULAR_APERTURE 0.05
+#define PI 3.14159265f
+#define HALF_PI 1.57079f
+#define MIN_SPECULAR_APERTURE 0.0174533f
+#define MAX_SPECULAR_APERTURE PI
+
+const float specular_aperture = clamp(tan(HALF_PI * (spec_to_roughness)), MIN_SPECULAR_APERTURE, MAX_SPECULAR_APERTURE);
 
 vec3 trace_specular(vec3 pos, vec3 normal, vec3 view_dir)
 {
   vec3 specular_dir = normalize(reflect(-view_dir, normal));
-  return trace_cone(pos, specular_dir, max(MIN_SPECULAR_APERTURE, spec_to_roughness), MAX_DISTANCE).xyz;
+
+  // Clamp to 1 grad and pi, exponent is angle of cone in radians
+  return trace_cone(pos, specular_dir, specular_aperture, MAX_DISTANCE).xyz;
 }
+
+vec3 trace_refraction(vec3 pos, vec3 normal, vec3 view_dir)
+{
+  const vec3 refraction = refract(view_dir, normal, 1.0 / ior);
+  return transmittance * trace_cone(pos, refraction, specular_aperture, MAX_DISTANCE).xyz;
+}
+
+uniform int view_voxel_dir;
+uniform float view_voxel_lod;
 
 void main()
 {
@@ -225,15 +250,26 @@ void main()
   if (!within_cube(pos, 0))
     return;
 
+  if (view_voxel_dir < 7)
+  {
+    final_color = textureLod(tex3D[view_voxel_dir], pos, view_voxel_lod);
+    return;
+  }
+
   vec3 view_dir = normalize(vs_out.world_position.xyz - camera_position);
 
   vec3 final_diffuse = vec3(0.0);
   vec3 final_direct = vec3(0.0);
   vec3 final_specular = vec3(0.0);
 
-  final_diffuse = diffuse * trace_diffuse(pos, vs_out.normal);
-  final_direct = direct_light(pos, view_dir);
-  final_specular = specular * trace_specular(pos, vs_out.normal, view_dir);
+  if (enable_diffuse)
+    final_diffuse = diffuse * trace_diffuse(pos, vs_out.normal);
+  if (enable_direct)
+    final_direct = direct_light(pos, view_dir);
+  if (enable_specular)
+    final_specular = specular * trace_specular(pos, vs_out.normal, view_dir);
 
   final_color = vec4(final_specular + final_diffuse + final_direct, 1);
+  if (illum == 4 || illum == 6 || illum == 7 || illum == 9)
+    final_color = vec4(mix(trace_refraction(pos, vs_out.normal, view_dir), final_color.rgb, dissolve), 1);
 }

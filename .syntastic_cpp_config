@@ -2,6 +2,8 @@
 -Ithirdparty/glfw/include
 -Ithirdparty/glm/
 -Ithirdparty
+-Ithirdparty/imgui/examples/opengl3_example
+-Ithirdparty/gl3w/include
 -Ilib/gl_utils/include
 -Iinclude
 -std=c++11
