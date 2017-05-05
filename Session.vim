@@ -8,13 +8,14 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
+badd +1 src/renderer.cpp
 badd +36 shader/passthrough.frag
 badd +2 shader/passthrough.vert
-badd +85 src/main.cpp
+badd +110 src/main.cpp
 badd +54 shader/voxelize.geom
 badd +1 src/device.cpp
 badd +19 shader/voxel_cone_tracing.vert
-badd +237 shader/voxel_cone_tracing.frag
+badd +1 shader/voxel_cone_tracing.frag
 badd +95 shader/voxelize.frag
 badd +131 lib/gl_utils/src/gl_helpers.c
 badd +28 shader/voxelize.vert
@@ -28,7 +29,7 @@ badd +6 .syntastic_cpp_config
 argglobal
 silent! argdel *
 argadd src/renderer.cpp
-edit src/main.cpp
+edit shader/voxel_cone_tracing.frag
 set splitbelow splitright
 wincmd _ | wincmd |
 vsplit
@@ -50,15 +51,15 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 34) / 69)
+let s:l = 275 - ((68 * winheight(0) + 34) / 69)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
+275
 normal! 0
 wincmd w
 argglobal
-edit shader/voxel_cone_tracing.frag
+edit shader/voxelize.frag
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -68,12 +69,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 193 - ((39 * winheight(0) + 34) / 69)
+let s:l = 50 - ((5 * winheight(0) + 34) / 69)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-193
-normal! 064|
+50
+normal! 0
 wincmd w
 exe 'vert 1resize ' . ((&columns * 135 + 135) / 271)
 exe 'vert 2resize ' . ((&columns * 135 + 135) / 271)

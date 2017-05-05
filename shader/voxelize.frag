@@ -60,6 +60,9 @@ float attenuate(float k, float l, float q, float d)
 
 uniform float cube_size;
 
+// Note: below functions relating to storing an atomic running average are courtesy of the OpenGL
+// Insights chapter on hardware accelerated voxelization
+
 uint convVec4ToRGBA8(vec4 val) {
   return (uint(val.w) & 0x000000FF) << 24U
     | (uint(val.z) & 0x000000FF) << 16U
