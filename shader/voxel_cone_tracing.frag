@@ -224,7 +224,7 @@ float spec_to_roughness = sqrt(2.0f / (shininess + 2.0f));
 #define MIN_SPECULAR_APERTURE 0.0174533f
 #define MAX_SPECULAR_APERTURE PI
 
-const float specular_aperture = clamp(tan(HALF_PI * (spec_to_roughness)), MIN_SPECULAR_APERTURE, MAX_SPECULAR_APERTURE);
+float specular_aperture = clamp(tan(HALF_PI * (spec_to_roughness)), MIN_SPECULAR_APERTURE, MAX_SPECULAR_APERTURE);
 
 vec3 trace_specular(vec3 pos, vec3 normal, vec3 view_dir)
 {
