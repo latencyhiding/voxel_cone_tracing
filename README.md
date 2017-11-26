@@ -2,6 +2,8 @@
 
 An implementation of voxel cone tracing based on "Interactive Indirect Illumination Using Voxel Cone Tracing" by Cyril Crassin et al (https://research.nvidia.com/sites/default/filles/publications/GIVoxels-pg2011-authors.pdf).
 
+![alt text](https://github.com/GreatBlambo/voxel_cone_tracing/blob/master/tckr9Pn.png)
+
 Requires OpenGL 4.5, CMake 3.2
 
 After cloning, do:
