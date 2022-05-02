@@ -1,6 +1,6 @@
 # Voxel Cone Tracing
 
-An implementation of voxel cone tracing based on "Interactive Indirect Illumination Using Voxel Cone Tracing" by Cyril Crassin et al (https://research.nvidia.com/sites/default/filles/publications/GIVoxels-pg2011-authors.pdf).
+An implementation of voxel cone tracing based on "Interactive Indirect Illumination Using Voxel Cone Tracing" by Cyril Crassin et al (https://research.nvidia.com/sites/default/files/publications/GIVoxels-pg2011-authors.pdf).
 
 ![alt text](https://github.com/GreatBlambo/voxel_cone_tracing/blob/master/tckr9Pn.png)
 
